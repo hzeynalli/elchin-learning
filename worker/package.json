@@ -1,0 +1,22 @@
+{
+  "name": "elchin-learning-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "simulate": "node scripts/simulate-year.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "jose": "^6.2.12",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.0",
+    "wrangler": "^4.130.0"
+  }
+}

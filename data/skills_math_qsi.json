@@ -1,0 +1,28 @@
+{
+  "subject": "Mathematics",
+  "student": "Elchin Zeynalli",
+  "qsi_course": "Mathematics-10 (US Grade 5 equivalent)",
+  "prerequisite_course": "Mathematics-9 (US Grade 4 equivalent) — last year",
+  "mastery_rule": "Skill = Secure when all its questions are correct on two consecutive tests; Emerging when >=50%; Not yet otherwise",
+  "skills": [
+    {"id": "G4.1",  "unit": "Grade 4 prerequisite", "name": "Read, write, compare and round whole numbers to 1,000,000"},
+    {"id": "G4.2",  "unit": "Grade 4 prerequisite", "name": "Add and subtract multi-digit numbers with regrouping"},
+    {"id": "G4.3",  "unit": "Grade 4 prerequisite", "name": "Multiplication facts to 12 x 12 (fluent, under 3 s each)"},
+    {"id": "G4.4",  "unit": "Grade 4 prerequisite", "name": "Multiply 3–4 digit by 1 digit and 2 digit by 2 digit"},
+    {"id": "G4.5",  "unit": "Grade 4 prerequisite", "name": "Divide up to 4 digit by 1 digit, including remainders"},
+    {"id": "G4.6",  "unit": "Grade 4 prerequisite", "name": "Factors, multiples, prime and composite numbers"},
+    {"id": "G4.7",  "unit": "Grade 4 prerequisite", "name": "Equivalent fractions; compare; add/subtract like denominators"},
+    {"id": "G4.8",  "unit": "Grade 4 prerequisite", "name": "Decimals to hundredths; relate to fractions; compare"},
+    {"id": "G4.9",  "unit": "Grade 4 prerequisite", "name": "Multi-step word problems with all four operations"},
+    {"id": "E01.1", "unit": "E01 Mathematical Foundations", "name": "Choose a strategy, show working, check reasonableness of an answer"},
+    {"id": "E01.2", "unit": "E01 Mathematical Foundations", "name": "Explain reasoning in words using correct maths vocabulary"},
+    {"id": "E02.1", "unit": "E02 Place Value & Expressions", "name": "Place-value patterns: a digit is 10x the place to its right, 1/10 of the place to its left"},
+    {"id": "E02.2", "unit": "E02 Place Value & Expressions", "name": "Read, write and compare whole numbers to billions (standard, word, expanded form)"},
+    {"id": "E02.3", "unit": "E02 Place Value & Expressions", "name": "Properties of operations: commutative, associative, distributive"},
+    {"id": "E02.4", "unit": "E02 Place Value & Expressions", "name": "Powers of 10 and exponents; multiply by 10, 100, 1000 using patterns"},
+    {"id": "E02.5", "unit": "E02 Place Value & Expressions", "name": "Multiply by 1-digit and 2-digit numbers (standard algorithm)"},
+    {"id": "E02.6", "unit": "E02 Place Value & Expressions", "name": "Relate multiplication and division; use inverse to check"},
+    {"id": "E02.7", "unit": "E02 Place Value & Expressions", "name": "Write a numerical expression from words and vice versa"},
+    {"id": "E02.8", "unit": "E02 Place Value & Expressions", "name": "Evaluate expressions using order of operations, including parentheses and brackets"}
+  ]
+}

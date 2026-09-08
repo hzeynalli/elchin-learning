@@ -1,0 +1,17 @@
+{
+ "note": "Planned month per skill, used for priority and learn-ahead when the school's unit order is unknown. Maths follows Go Math Grade 5 chapter order; others follow a standard Grade 5 sequence. Adjust when the portal shows a new engaged unit.",
+ "months": {
+  "2026-09": ["G4.*", "5.NBT.1", "5.NBT.2", "5.NBT.RW", "5.NBT.5", "5.OA.PROP", "5.OA.1", "5.OA.2", "5.NBT.6a", "5.MP.1", "5.FLU",
+              "RD.RL.1", "RD.RL.2", "RD.RL.3", "RD.RL.4", "RD.RL.6", "RD.V.1", "RD.RF.4", "RD.HAB",
+              "LU.W.N1", "LU.W.N2", "LU.W.N3", "LU.W.N4", "LU.W.P1", "LU.W.ID", "LU.G.3", "LU.G.4", "LU.G.6", "LU.M.6", "LU.S.1", "SC.PRAC.1"],
+  "2026-10": ["5.NBT.6", "RD.RL.5", "RD.RI.1", "RD.RI.2", "RD.V.2", "LU.G.1", "LU.G.2", "LU.M.1", "LU.M.2", "LU.M.5", "SC.PS1.1", "SC.PS1.3"],
+  "2026-11": ["5.NBT.3", "5.NBT.4", "5.NBT.7", "RD.RI.3", "RD.RI.4", "RD.RI.5", "LU.W.O1", "SC.PS1.2", "SC.PS1.4", "SC.PRAC.2"],
+  "2026-12": ["5.NF.1", "5.NF.2", "RD.RI.7", "RD.RI.8", "LU.M.3", "LU.M.4", "SC.G4.PS3"],
+  "2027-01": ["5.NF.3", "5.NF.4", "RD.RL.9", "RD.V.3", "LU.G.5", "LU.W.I1", "SC.PS2.1", "SC.PS3.1"],
+  "2027-02": ["5.NF.7", "5.MD.1", "RD.RI.6", "RD.RI.9", "LU.W.R1", "SC.LS1.1", "SC.LS2.1"],
+  "2027-03": ["5.OA.3", "5.G.1", "5.MD.2", "RD.V.4", "LU.S.2", "SC.ESS1.1", "SC.ESS1.2", "SC.G4.LS1"],
+  "2027-04": ["5.MD.3", "5.G.3", "SC.ESS2.1", "SC.ESS2.2", "SC.G4.PS4"],
+  "2027-05": ["review-all", "SC.ESS3.1", "SC.G4.ESS"],
+  "2027-06": ["review-all"]
+ }
+}

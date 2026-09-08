@@ -1,0 +1,270 @@
+{
+ "subject": "Reading",
+ "map_instructional_areas": [
+  "Literary Text",
+  "Informational Text",
+  "Vocabulary Acquisition and Use"
+ ],
+ "skills": [
+  {
+   "id": "RD.RL.1",
+   "subject": "Reading",
+   "strand": "Literary Text: Key Ideas",
+   "qsi_unit": "READ-E02",
+   "standard": "RL.5.1",
+   "name": "Quote accurately from a text; draw inferences with evidence",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "RD.RL.2",
+   "subject": "Reading",
+   "strand": "Literary Text: Key Ideas",
+   "qsi_unit": "READ-E02",
+   "standard": "RL.5.2",
+   "name": "Determine theme from details (how characters respond to challenges); summarise",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RL.1"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "RD.RL.3",
+   "subject": "Reading",
+   "strand": "Literary Text: Key Ideas",
+   "qsi_unit": "READ-E02",
+   "standard": "RL.5.3",
+   "name": "Compare and contrast characters, settings, events using details",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RL.1"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "RD.RL.4",
+   "subject": "Reading",
+   "strand": "Literary Text: Craft & Structure",
+   "qsi_unit": "READ-E02",
+   "standard": "RL.5.4",
+   "name": "Meaning of words and phrases incl. figurative language (metaphor, simile)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "RD.RL.5",
+   "subject": "Reading",
+   "strand": "Literary Text: Craft & Structure",
+   "qsi_unit": "READ-E02",
+   "standard": "RL.5.5",
+   "name": "How chapters, scenes or stanzas fit together to give structure",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "RD.RL.6",
+   "subject": "Reading",
+   "strand": "Literary Text: Craft & Structure",
+   "qsi_unit": "READ-E02",
+   "standard": "RL.5.6",
+   "name": "Narrator's or speaker's point of view and how it shapes events",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "RD.RL.9",
+   "subject": "Reading",
+   "strand": "Literary Text: Integration",
+   "qsi_unit": null,
+   "standard": "RL.5.9",
+   "name": "Compare stories in the same genre on approaches to themes/topics",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RL.2"
+   ],
+   "priority": 3
+  },
+  {
+   "id": "RD.RI.1",
+   "subject": "Reading",
+   "strand": "Informational Text: Key Ideas",
+   "qsi_unit": null,
+   "standard": "RI.5.1",
+   "name": "Quote accurately; inference from informational text",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.2",
+   "subject": "Reading",
+   "strand": "Informational Text: Key Ideas",
+   "qsi_unit": null,
+   "standard": "RI.5.2",
+   "name": "Two or more main ideas and supporting details; summarise",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RI.1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.3",
+   "subject": "Reading",
+   "strand": "Informational Text: Key Ideas",
+   "qsi_unit": "CS-E01",
+   "standard": "RI.5.3",
+   "name": "Relationships between individuals, events, ideas (historical, scientific)",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RI.1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.4",
+   "subject": "Reading",
+   "strand": "Informational Text: Craft & Structure",
+   "qsi_unit": null,
+   "standard": "RI.5.4",
+   "name": "Domain-specific academic vocabulary in context",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.5",
+   "subject": "Reading",
+   "strand": "Informational Text: Craft & Structure",
+   "qsi_unit": null,
+   "standard": "RI.5.5",
+   "name": "Text structure: chronology, comparison, cause/effect, problem/solution",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.6",
+   "subject": "Reading",
+   "strand": "Informational Text: Craft & Structure",
+   "qsi_unit": null,
+   "standard": "RI.5.6",
+   "name": "Multiple accounts of the same event; point of view",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 3
+  },
+  {
+   "id": "RD.RI.7",
+   "subject": "Reading",
+   "strand": "Informational Text: Integration",
+   "qsi_unit": "CS-E01",
+   "standard": "RI.5.7",
+   "name": "Draw on multiple sources to answer a question or solve a problem",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RI.2"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.8",
+   "subject": "Reading",
+   "strand": "Informational Text: Integration",
+   "qsi_unit": null,
+   "standard": "RI.5.8",
+   "name": "How an author uses reasons and evidence to support points",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RI.2"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "RD.RI.9",
+   "subject": "Reading",
+   "strand": "Informational Text: Integration",
+   "qsi_unit": null,
+   "standard": "RI.5.9",
+   "name": "Integrate information from several texts on a topic",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RI.7"
+   ],
+   "priority": 3
+  },
+  {
+   "id": "RD.V.1",
+   "subject": "Reading",
+   "strand": "Vocabulary Acquisition & Use",
+   "qsi_unit": null,
+   "standard": "L.5.4a",
+   "name": "Context clues (cause/effect, comparisons) to find word meaning",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "RD.V.2",
+   "subject": "Reading",
+   "strand": "Vocabulary Acquisition & Use",
+   "qsi_unit": null,
+   "standard": "L.5.4b",
+   "name": "Greek and Latin affixes and roots (photo-, graph, tele-, -able)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "RD.V.3",
+   "subject": "Reading",
+   "strand": "Vocabulary Acquisition & Use",
+   "qsi_unit": null,
+   "standard": "L.5.5",
+   "name": "Figurative language, idioms, adages; synonyms/antonyms/homographs",
+   "grade": 5,
+   "prerequisites": [
+    "RD.RL.4"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "RD.V.4",
+   "subject": "Reading",
+   "strand": "Vocabulary Acquisition & Use",
+   "qsi_unit": null,
+   "standard": "L.5.6",
+   "name": "Grade-appropriate academic words incl. contrast/addition/logical relationships",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "RD.RF.4",
+   "subject": "Reading",
+   "strand": "Foundational: Fluency",
+   "qsi_unit": "READ-E01",
+   "standard": "RF.5.4",
+   "name": "Read grade-level text with accuracy, rate and expression (oral, timed)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "RD.HAB",
+   "subject": "Reading",
+   "strand": "Reader identity",
+   "qsi_unit": "READ-E01",
+   "standard": "QSI Reading E01",
+   "name": "Reading habit: chooses books, sets goals, reads 20+ min daily, keeps a log",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  }
+ ]
+}

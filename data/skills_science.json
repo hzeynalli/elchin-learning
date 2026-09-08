@@ -1,0 +1,228 @@
+{
+ "subject": "Science",
+ "map_instructional_areas": [
+  "Physical Science",
+  "Life Science",
+  "Earth and Space Science",
+  "Science Practices"
+ ],
+ "skills": [
+  {
+   "id": "SC.PS1.1",
+   "subject": "Science",
+   "strand": "Physical Science",
+   "qsi_unit": null,
+   "standard": "5-PS1-1",
+   "name": "Matter is made of particles too small to see (gases, dissolving, evaporation)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.PS1.2",
+   "subject": "Science",
+   "strand": "Physical Science",
+   "qsi_unit": null,
+   "standard": "5-PS1-2",
+   "name": "Mass is conserved when substances are heated, cooled, mixed",
+   "grade": 5,
+   "prerequisites": [
+    "SC.PS1.1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "SC.PS1.3",
+   "subject": "Science",
+   "strand": "Physical Science",
+   "qsi_unit": null,
+   "standard": "5-PS1-3",
+   "name": "Identify materials by properties (solubility, conductivity, magnetism, etc.)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.PS1.4",
+   "subject": "Science",
+   "strand": "Physical Science",
+   "qsi_unit": null,
+   "standard": "5-PS1-4",
+   "name": "Mixing substances: does a new substance form?",
+   "grade": 5,
+   "prerequisites": [
+    "SC.PS1.3"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "SC.PS2.1",
+   "subject": "Science",
+   "strand": "Physical Science",
+   "qsi_unit": null,
+   "standard": "5-PS2-1",
+   "name": "Gravity pulls objects toward Earth's centre",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.PS3.1",
+   "subject": "Science",
+   "strand": "Physical Science",
+   "qsi_unit": null,
+   "standard": "5-PS3-1",
+   "name": "Energy in animals' food came from the sun",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.LS1.1",
+   "subject": "Science",
+   "strand": "Life Science",
+   "qsi_unit": null,
+   "standard": "5-LS1-1",
+   "name": "Plants get materials for growth mainly from air and water, not soil",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.LS2.1",
+   "subject": "Science",
+   "strand": "Life Science",
+   "qsi_unit": null,
+   "standard": "5-LS2-1",
+   "name": "Food webs, decomposers, movement of matter among plants, animals, environment",
+   "grade": 5,
+   "prerequisites": [
+    "SC.PS3.1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "SC.ESS1.1",
+   "subject": "Science",
+   "strand": "Earth & Space",
+   "qsi_unit": null,
+   "standard": "5-ESS1-1",
+   "name": "Sun's apparent brightness is due to its relative distance",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.ESS1.2",
+   "subject": "Science",
+   "strand": "Earth & Space",
+   "qsi_unit": null,
+   "standard": "5-ESS1-2",
+   "name": "Daily/seasonal patterns: shadows, day/night, star visibility, from Earth's rotation and orbit",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.ESS2.1",
+   "subject": "Science",
+   "strand": "Earth & Space",
+   "qsi_unit": null,
+   "standard": "5-ESS2-1",
+   "name": "Interactions of geosphere, biosphere, hydrosphere, atmosphere",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.ESS2.2",
+   "subject": "Science",
+   "strand": "Earth & Space",
+   "qsi_unit": null,
+   "standard": "5-ESS2-2",
+   "name": "Distribution of water on Earth (salt vs fresh, ice, groundwater) with data",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.ESS3.1",
+   "subject": "Science",
+   "strand": "Earth & Space",
+   "qsi_unit": null,
+   "standard": "5-ESS3-1",
+   "name": "Communities using science to protect resources and environment",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 3
+  },
+  {
+   "id": "SC.G4.PS3",
+   "subject": "Science",
+   "strand": "Physical Science (Gr 4)",
+   "qsi_unit": null,
+   "standard": "4-PS3-1..4",
+   "name": "Energy: speed, transfer by sound/light/heat/electric currents, collisions, conversions",
+   "grade": 4,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.G4.PS4",
+   "subject": "Science",
+   "strand": "Physical Science (Gr 4)",
+   "qsi_unit": null,
+   "standard": "4-PS4-1..3",
+   "name": "Waves (amplitude, wavelength); light reflection and seeing; information transfer",
+   "grade": 4,
+   "prerequisites": [],
+   "priority": 3
+  },
+  {
+   "id": "SC.G4.LS1",
+   "subject": "Science",
+   "strand": "Life Science (Gr 4)",
+   "qsi_unit": null,
+   "standard": "4-LS1-1..2",
+   "name": "Structures and functions of plants/animals; senses and information processing",
+   "grade": 4,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.G4.ESS",
+   "subject": "Science",
+   "strand": "Earth Science (Gr 4)",
+   "qsi_unit": null,
+   "standard": "4-ESS1-1, 4-ESS2-1..2, 4-ESS3-1..2",
+   "name": "Rock layers and fossils; weathering/erosion; Earth features maps; renewable vs non-renewable energy; natural hazards",
+   "grade": 4,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "SC.PRAC.1",
+   "subject": "Science",
+   "strand": "Science practices",
+   "qsi_unit": null,
+   "standard": "SEP/NGSS practices",
+   "name": "Read tables and graphs; identify variables; plan a fair test; draw conclusions from data",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "SC.PRAC.2",
+   "subject": "Science",
+   "strand": "Science practices",
+   "qsi_unit": null,
+   "standard": "SEP 6-7",
+   "name": "Construct an explanation from evidence; argue from evidence",
+   "grade": 5,
+   "prerequisites": [
+    "SC.PRAC.1"
+   ],
+   "priority": 2
+  }
+ ]
+}

@@ -1,0 +1,135 @@
+{
+ "as_of": "2026-09-08",
+ "student": "Elchin Zeynalli",
+ "school": "QSI International School of Baku",
+ "class": "10-year-old (US Grade 5)",
+ "units": [
+  {
+   "id": "MATH-E01",
+   "course": "Mathematics-10",
+   "unit": "E01 Mathematical Foundations",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true
+  },
+  {
+   "id": "MATH-E02",
+   "course": "Mathematics-10",
+   "unit": "E02 Place Value & Expressions",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true,
+   "go_math_chapter": "Grade 5 Ch.1 Place Value, Multiplication and Expressions"
+  },
+  {
+   "id": "READ-E01",
+   "course": "Reading Literacy-10",
+   "unit": "E01 Establish Myself as A Reader",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true
+  },
+  {
+   "id": "READ-E02",
+   "course": "Reading Literacy-10",
+   "unit": "E02 Short Stories",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true
+  },
+  {
+   "id": "WRIT-E01",
+   "course": "Writing Literacy-10",
+   "unit": "E01 Establish Myself as A Writer",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true
+  },
+  {
+   "id": "WRIT-E02",
+   "course": "Writing Literacy-10",
+   "unit": "E02 Narrative Fiction Drafting",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true
+  },
+  {
+   "id": "CS-E01",
+   "course": "Cultural Studies-10",
+   "unit": "E01 Ancient World: Research Part 1",
+   "teacher": "Taljaard, Maria",
+   "engaged": "2026-08-21",
+   "evaluation": "P",
+   "due": "2026-10-01",
+   "track": true,
+   "note": "unit-level tracking only; research skills map to RD.RI.7 and LU.W.R1"
+  },
+  {
+   "id": "ART-E01",
+   "course": "Art-10",
+   "unit": "E01 Foundations",
+   "teacher": "Afandiyeva, Aylel",
+   "engaged": "2026-08-26",
+   "evaluation": "P",
+   "track": false
+  },
+  {
+   "id": "GER-E01",
+   "course": "German Level 1 Elem",
+   "unit": "E01 Meeting & Greeting People",
+   "teacher": "Kazimova, Samira",
+   "engaged": "2026-09-01",
+   "evaluation": "P",
+   "track": false
+  },
+  {
+   "id": "LIB-E01",
+   "course": "Library-10",
+   "unit": "E01 General Skills",
+   "teacher": "Taghiyeva, Shafag",
+   "engaged": "2026-08-24",
+   "evaluation": "P",
+   "track": false
+  },
+  {
+   "id": "MUS-E01",
+   "course": "Music-10",
+   "unit": "E01 Adv Concepts & Skills 2",
+   "teacher": "Akhundova, Rahima",
+   "engaged": "2026-08-26",
+   "evaluation": "P",
+   "track": false
+  },
+  {
+   "id": "PE-E01",
+   "course": "Physical Ed-10",
+   "unit": "E01 Fitness/Movement",
+   "teacher": "Kamishanskaya, Tatyana",
+   "engaged": "2026-08-24",
+   "evaluation": "P",
+   "track": false
+  },
+  {
+   "id": "TECH-E01",
+   "course": "Technology-10",
+   "unit": "E01 Digital World",
+   "teacher": "Budagova, Aygun",
+   "engaged": "2026-08-24",
+   "evaluation": "P",
+   "track": false
+  }
+ ],
+ "note": "TSW lists for tracked units requested from the teacher; when received, add them as skills with qsi_unit set and keep ids stable."
+}

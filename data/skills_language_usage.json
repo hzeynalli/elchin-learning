@@ -1,0 +1,279 @@
+{
+ "subject": "Language Usage",
+ "map_instructional_areas": [
+  "Writing: Plan, Organize, Develop, Revise, Research",
+  "Grammar and Usage",
+  "Mechanics"
+ ],
+ "skills": [
+  {
+   "id": "LU.G.1",
+   "subject": "Language Usage",
+   "strand": "Grammar & Usage",
+   "qsi_unit": null,
+   "standard": "L.5.1a",
+   "name": "Conjunctions, prepositions, interjections: function in sentences",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "LU.G.2",
+   "subject": "Language Usage",
+   "strand": "Grammar & Usage",
+   "qsi_unit": null,
+   "standard": "L.5.1b",
+   "name": "Perfect verb tenses (has walked, had walked, will have walked)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "LU.G.3",
+   "subject": "Language Usage",
+   "strand": "Grammar & Usage",
+   "qsi_unit": "WRIT-E02",
+   "standard": "L.5.1c",
+   "name": "Verb tense to convey time, sequence, state, condition",
+   "grade": 5,
+   "prerequisites": [
+    "LU.G.2"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "LU.G.4",
+   "subject": "Language Usage",
+   "strand": "Grammar & Usage",
+   "qsi_unit": "WRIT-E02",
+   "standard": "L.5.1d",
+   "name": "Recognise and correct inappropriate shifts in verb tense",
+   "grade": 5,
+   "prerequisites": [
+    "LU.G.3"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "LU.G.5",
+   "subject": "Language Usage",
+   "strand": "Grammar & Usage",
+   "qsi_unit": null,
+   "standard": "L.5.1e",
+   "name": "Correlative conjunctions (either/or, neither/nor)",
+   "grade": 5,
+   "prerequisites": [
+    "LU.G.1"
+   ],
+   "priority": 3
+  },
+  {
+   "id": "LU.G.6",
+   "subject": "Language Usage",
+   "strand": "Grammar & Usage",
+   "qsi_unit": "WRIT-E02",
+   "standard": "L.4.1 (review)",
+   "name": "Subject\u2013verb agreement; pronoun\u2013antecedent agreement; run-ons and fragments",
+   "grade": 4,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "LU.M.1",
+   "subject": "Language Usage",
+   "strand": "Mechanics",
+   "qsi_unit": null,
+   "standard": "L.5.2a",
+   "name": "Commas to separate items in a series",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "LU.M.2",
+   "subject": "Language Usage",
+   "strand": "Mechanics",
+   "qsi_unit": null,
+   "standard": "L.5.2b",
+   "name": "Comma after introductory element",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "LU.M.3",
+   "subject": "Language Usage",
+   "strand": "Mechanics",
+   "qsi_unit": null,
+   "standard": "L.5.2c",
+   "name": "Commas for yes/no, tag questions, direct address",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 3
+  },
+  {
+   "id": "LU.M.4",
+   "subject": "Language Usage",
+   "strand": "Mechanics",
+   "qsi_unit": null,
+   "standard": "L.5.2d",
+   "name": "Underline/italics/quotation marks for titles",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 3
+  },
+  {
+   "id": "LU.M.5",
+   "subject": "Language Usage",
+   "strand": "Mechanics",
+   "qsi_unit": null,
+   "standard": "L.5.2e",
+   "name": "Spell grade-appropriate words; use references",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 2
+  },
+  {
+   "id": "LU.M.6",
+   "subject": "Language Usage",
+   "strand": "Mechanics",
+   "qsi_unit": "WRIT-E02",
+   "standard": "L.4.2 (review)",
+   "name": "Capitalisation; punctuating dialogue with quotation marks and commas",
+   "grade": 4,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "LU.S.1",
+   "subject": "Language Usage",
+   "strand": "Sentence craft",
+   "qsi_unit": "WRIT-E02",
+   "standard": "L.5.3a",
+   "name": "Expand, combine and reduce sentences for meaning, interest, style",
+   "grade": 5,
+   "prerequisites": [
+    "LU.G.6"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "LU.S.2",
+   "subject": "Language Usage",
+   "strand": "Sentence craft",
+   "qsi_unit": null,
+   "standard": "L.5.3b",
+   "name": "Compare varieties of English in stories/poems (register)",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 3
+  },
+  {
+   "id": "LU.W.N1",
+   "subject": "Language Usage",
+   "strand": "Writing: Narrative",
+   "qsi_unit": "WRIT-E02",
+   "standard": "W.5.3a",
+   "name": "Orient the reader: situation, narrator, characters; natural event sequence",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "LU.W.N2",
+   "subject": "Language Usage",
+   "strand": "Writing: Narrative",
+   "qsi_unit": "WRIT-E02",
+   "standard": "W.5.3b",
+   "name": "Dialogue, description and pacing to develop experiences and characters",
+   "grade": 5,
+   "prerequisites": [
+    "LU.M.6"
+   ],
+   "priority": 1
+  },
+  {
+   "id": "LU.W.N3",
+   "subject": "Language Usage",
+   "strand": "Writing: Narrative",
+   "qsi_unit": "WRIT-E02",
+   "standard": "W.5.3c-d",
+   "name": "Transitional words for sequence; concrete words and sensory details",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "LU.W.N4",
+   "subject": "Language Usage",
+   "strand": "Writing: Narrative",
+   "qsi_unit": "WRIT-E02",
+   "standard": "W.5.3e",
+   "name": "A conclusion that follows from the events",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "LU.W.P1",
+   "subject": "Language Usage",
+   "strand": "Writing: Process",
+   "qsi_unit": "WRIT-E01",
+   "standard": "W.5.4-5",
+   "name": "Plan, draft, revise, edit with a checklist; task/purpose/audience",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  },
+  {
+   "id": "LU.W.O1",
+   "subject": "Language Usage",
+   "strand": "Writing: Opinion",
+   "qsi_unit": null,
+   "standard": "W.5.1",
+   "name": "Opinion piece: claim, logically ordered reasons, linking words, conclusion",
+   "grade": 5,
+   "prerequisites": [
+    "LU.W.P1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "LU.W.I1",
+   "subject": "Language Usage",
+   "strand": "Writing: Informative",
+   "qsi_unit": null,
+   "standard": "W.5.2",
+   "name": "Informative text: topic, grouped facts/definitions/quotes, domain vocabulary, conclusion",
+   "grade": 5,
+   "prerequisites": [
+    "LU.W.P1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "LU.W.R1",
+   "subject": "Language Usage",
+   "strand": "Writing: Research",
+   "qsi_unit": "CS-E01",
+   "standard": "W.5.7-9",
+   "name": "Short research: gather from sources, take notes, summarise, list sources",
+   "grade": 5,
+   "prerequisites": [
+    "LU.W.I1"
+   ],
+   "priority": 2
+  },
+  {
+   "id": "LU.W.ID",
+   "subject": "Language Usage",
+   "strand": "Writer identity",
+   "qsi_unit": "WRIT-E01",
+   "standard": "QSI Writing E01",
+   "name": "Writer's notebook habit; generates ideas; sets writing goals",
+   "grade": 5,
+   "prerequisites": [],
+   "priority": 1
+  }
+ ]
+}
