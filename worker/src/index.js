@@ -6,6 +6,8 @@ import { manualTemplate, manualEntry } from './manual.js';
 import { rewardsRoutes } from './rewards.js';
 import { settingsRoutes } from './settings.js';
 import { testsRoutes } from './tests.js';
+import { bankRoutes } from './bank.js';
+import { parentRoutes } from './parent.js';
 import { BudgetExceeded } from './anthropic.js';
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -26,8 +28,10 @@ const routes = {
   ...rewardsRoutes,
   ...settingsRoutes,
   ...testsRoutes,
+  ...bankRoutes,
+  ...parentRoutes,
 };
-const PARENT_ONLY = new Set(['POST /manual-entry', 'POST /rewards', 'POST /rewards/delete', 'POST /points', 'POST /settings', 'POST /map-results', 'POST /parent-mark', 'GET /export/csv', 'GET /export/weekly.pdf', 'GET /usage']);
+const PARENT_ONLY = new Set(['POST /manual-entry', 'POST /rewards', 'POST /rewards/delete', 'POST /points', 'POST /settings', 'POST /map-results', 'POST /parent-mark', 'GET /marking-queue', 'GET /export/csv', 'GET /export/weekly.pdf', 'GET /usage', 'POST /admin/refill-bank', 'GET /bank/status', 'POST /admin/seed']);
 const PUBLIC = new Set(['GET /health']);
 
 // later phases register here (tests, coach, telemetry, bank, exports) — see registerRoutes()
@@ -69,7 +73,7 @@ export async function handle(request, env, ctx) {
 export default {
   fetch: (request, env, ctx) => handle(request, env, ctx),
   async scheduled(event, env, ctx) {
-    const { refillBank } = await import('./bank.js').catch(() => ({ refillBank: null }));
-    if (refillBank) ctx.waitUntil(refillBank(env));
+    const { refillBank } = await import('./bank.js');
+    ctx.waitUntil(refillBank(env, makeRepo(env, null)).then((s) => console.log('bank refill', JSON.stringify(s))).catch((e) => console.error('bank refill failed', e.message)));
   },
 };

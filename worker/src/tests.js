@@ -28,7 +28,7 @@ export async function markAnswer(env, repo, row, given, { time_s = null, retry =
   if (rule) return { ...base, correct: rule.correct, marked_by: 'rule', partial: rule.correct ? 1 : 0, confidence: 1, feedback: null };
   // short_text / writing → LLM (mock mode returns a low-confidence heuristic → parent queue)
   const prompt = markPrompt.replace('{{stem}}', item.stem).replace('{{rubric}}', item.rubric || item.answer || '').replace('{{answer}}', String(given ?? ''));
-  const res = await llm(env, repo, { purpose: 'mark', model: env.MODEL_GEN, system: 'You mark short answers. Reply with JSON only.', messages: [{ role: 'user', content: prompt }], max_tokens: 300, json: true, effort: 'low' });
+  const res = await llm(env, repo, { purpose: 'mark', model: env.MODEL_MARK || env.MODEL_GEN, system: 'You mark short answers. Reply with JSON only.', messages: [{ role: 'user', content: prompt }], max_tokens: 300, json: true, effort: 'low' });
   const j = res.json || {};
   const correct = j.correct === true, confidence = Math.max(0, Math.min(1, Number(j.confidence ?? 0.5)));
   return { ...base, correct, partial: j.partial != null ? Number(j.partial) : correct ? 1 : 0, confidence, feedback: j.feedback || null, marked_by: 'llm' };
@@ -83,12 +83,22 @@ export const testsRoutes = {
       const next = await serveNext(repo, { env, studentId, test, byId, states: stateBy, now: nowIso });
       return { test_id: test.id, mode, subject, resumed: !!open && !body?.restart, progress: progressOf(test.plan), ...next };
     }
+    if (mode === 'reading') {                                   // one passage, its whole question set (docs/02 §4 step 3)
+      const passages = (await repo.getPassages()).filter((p) => Array.isArray(p.questions) && p.questions.length);
+      if (!passages.length) throw bad('No passages in the bank yet', 503);
+      const p = body?.passage_id ? passages.find((x) => x.id === body.passage_id) || passages[0] : passages[0];   // least used first
+      const test = await repo.insertTest({ student_id: studentId, subject: 'Reading', kind: 'reading', status: 'open', started_at: nowIso, plan: { passage_id: p.id, title: p.title, mode } });
+      const rows = p.questions.map((q, i) => { const { skill_id, tier, ...rest } = q; return { test_id: test.id, student_id: studentId, skill_id, position: i + 1, tier, format: q.format, item: { ...rest, passage: p.text, passage_id: p.id, passage_title: p.title, generated_by: 'human' }, stem_hash: `${p.id}-${i}`, answer_given: null, correct: null }; });
+      const inserted = await repo.insertTestItems(rows);
+      await repo.updatePassage(p.id, { used_count: (p.used_count || 0) + 1 }).catch(() => {});
+      return { test_id: test.id, mode, subject: 'Reading', passage: { id: p.id, title: p.title, text: p.text, genre: p.genre }, items: inserted.map(publicItem), expected_s: inserted.map((r) => expectedSeconds({ format: r.format, tier: r.tier })) };
+    }
     const rng = rngFor(studentId, mode, nowIso);
     const specs = specsForMode({ mode, skills, stateBy, subject, skillId: body?.skill_id, rng });
     if ((mode === 'practice10' || mode === 'confirm5') && !byId[body?.skill_id]) throw bad('skill_id required');
     const kind = mode;
     const test = await repo.insertTest({ student_id: studentId, subject: byId[body?.skill_id]?.subject || subject, kind, skill_id: body?.skill_id || null, loop_id: body?.loop_id || null, status: 'open', started_at: nowIso, plan: { specs: specs.length, mode } });
-    const rows = await makeItems(repo, { studentId, testId: test.id, subject, specs, skillsById: byId });
+    const rows = await makeItems(repo, { studentId, testId: test.id, subject, specs, skillsById: byId, env });
     const inserted = await repo.insertTestItems(rows);
     return { test_id: test.id, mode, subject, items: inserted.map(publicItem), expected_s: inserted.map((r) => expectedSeconds({ format: r.format, tier: r.tier, time_limit_s: r.item.time_limit_s })) };
   },
@@ -175,7 +185,7 @@ async function serveNext(repo, { env, studentId, test, byId, states, now, profil
   if (spec.sitting_complete) { await repo.updateTest(test.id, { status: 'sitting_complete', plan: test.plan }); return { sitting_complete: true, summary: summarize(test.plan) }; }
   if (spec.test_complete) { const results = await finalizeTest(env, repo, { test, studentId, profile, now }); return { test_complete: true, results }; }
   const position = (test.plan.total_items || 0) + 1;
-  const [row] = await makeItems(repo, { studentId, testId: test.id, subject: test.subject, specs: [{ ...spec, position }], skillsById: byId });
+  const [row] = await makeItems(repo, { studentId, testId: test.id, subject: test.subject, specs: [{ ...spec, position }], skillsById: byId, env });
   const [inserted] = await repo.insertTestItems([row]);
   return { item: publicItem(inserted) };
 }

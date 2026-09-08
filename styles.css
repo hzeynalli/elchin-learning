@@ -101,3 +101,5 @@ body.role-parent input, body.role-parent select { min-height: 38px; padding: 8px
 .feedback.right { border-left: 3px solid var(--copper); } .feedback.right strong { color: var(--copper); }
 .feedback.again { border-left: 3px solid var(--taupe); } .feedback.again strong { color: var(--taupe); }
 @keyframes slide { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+.qitem { border-top: 1px solid var(--hair); padding: 14px 0; }
+textarea.answer { font-size: 1.1rem; line-height: 1.5; resize: vertical; }

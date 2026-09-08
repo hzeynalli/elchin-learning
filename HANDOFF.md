@@ -5,7 +5,7 @@ produced it is archived in `90 Claude Workspace/Conversations/` (session `258ecc
 GitHub (`hzeynalli/elchin-learning`, private). The OneDrive copy at `90 Claude Workspace/Projects/elchin-learning/`
 mirrors the repo without `node_modules`/`.git` and includes `.env`.
 
-Last updated: 2026-09-09 (Baku), end of Phase 1 build — see "Status by phase".
+Last updated: 2026-09-09 (Baku), Phases 1–3 built; Phase 4 (coach) in progress — see "Status by phase".
 
 ---
 
@@ -40,7 +40,8 @@ Last updated: 2026-09-09 (Baku), end of Phase 1 build — see "Status by phase".
 | Worker code | `worker/` — `src/index.js` router, `auth.js` (JWKS), `repo.js`, `mastery.js`, `scheduler.js`, `adaptive.js`, `marking.js`, `telemetry.js`, `recompute.js`, `dashboard.js`, `manual.js`, `rewards.js`, `settings.js`, `anthropic.js`, `items.js` |
 | Front-end | `index.html`, `app.js`, `styles.css`, `config.js` at the repo root (GitHub Pages / Worker assets) |
 | Data additions | `data/qsi_crosswalk.json` (QSI labels ↔ canonical skills + Diagnostic 1 map), `data/confusables.json` |
-| Tests | `cd worker && npm test` — mastery (19), scheduler (11), adaptive (9), marking (10), telemetry (3), handlers (8) |
+| Tests | `cd worker && npm test` — 190 tests: mastery, scheduler, adaptive, marking, telemetry, handlers, generators (115 independent checks), test flows, readability, phase 3 (bank/queue/reading) |
+| Models | `wrangler.toml`: coach `claude-fable-5-1`, marking `claude-fable-5-1` (MODEL_MARK), generation + verification `claude-sonnet-5`, guards `claude-haiku-4-5-20251001` — one-line switches |
 
 ## 2. What the office must do first (things this laptop could not do)
 
@@ -102,8 +103,24 @@ Last updated: 2026-09-09 (Baku), end of Phase 1 build — see "Status by phase".
 - [ ] **Deploy** (needs `wrangler login`) and set `WORKER_URL` in `config.js`
 - [ ] **Writes end-to-end** in the real project (needs `SUPABASE_SERVICE_KEY`) — unit-tested with the in-memory repo
 
-### Phase 2 — Tests (maths generators, /generate-test, /submit-test, Checks tab)  ⏳ next
-### Phase 3 — Reading / LU / Science items, passages, marking queue
+### Phase 2 — Tests  ✅ built and unit-tested (flows verified on the in-memory repo; live writes need the service key)
+- [x] 38 maths generators (`worker/generators/math/`), 3 tiers each, seeded, answers computed in code; `generators/__tests__/math.test.js` re-verifies every item with an **independent** evaluator (115 cases × 20 seeds) and checks determinism, variety, self-marking
+- [x] Item supply with dedupe against the skill's last 300 stems (`itemgen.js`); Claude rewords tier-2/3 word problems and a cold-solve call must match the coded answer before the rewording ships (docs/03 §3) — active only when the key exists
+- [x] `POST /generate-test` (diagnostic scope A/B/ids, targeted 15 over weak skills, practice10, confirm5, review, daily_review, reading), `POST /next-item` (adaptive with immediate feedback; practice retry rule), `POST /answer-item` (autosave), `POST /submit-test`, `GET /tests`, `GET /test`
+- [x] Prerequisite gating, sittings of 25, resume, per-skill results with status transitions, points
+- [x] Checks tab: one question at a time, huge stem, option cards, ordering arrows, timer + fluency countdown, feedback panel, results with per-skill bars and next steps
+- [x] Acceptance: two diagnostics in a row produce different items (test); every numeric answer verified by unit test; targeted contains only weak skills (test)
+
+### Phase 3 — Reading / LU / Science  ✅ built and unit-tested; live seeding is one click at the office
+- [x] Readability gate in code (`readability.js`): FK 4.5–6.5 (t3 ≤ 7.0), 11–17 words/sentence, 250–500 words — runs on every passage; `scripts/check-passages.js`
+- [x] 16 original passages (8 fiction, 8 informational) × 6 questions = 96 reading items, all passing the gate; 136 hand-written LU + Science items with rule + CCSS/NGSS code; total 232 starter items over 32 skills (`data/passages/`, `data/items/`)
+- [x] Item bank engine (`bank.js`): Claude generates → second cold verification call → stored verified; refill every 15 min (cron) for skills below 10/tier, priority-1 first, budget-aware; dedupe by stem+options hash
+- [x] Marking: exact formats in code; every open answer marked by Claude (`MODEL_MARK`, Fable 5.1) with confidence; < 0.8 + 10 % sample → parent queue (`GET /marking-queue`, `POST /parent-mark` → recompute)
+- [x] Reading mode: one passage, its full question set (`kind = reading`, migration 0002)
+- [x] Parent UI: marking queue with ✓/✗ and feedback; Admin: **Seed content**, Refill bank, Show stock
+- [ ] **Office**: after deploy, Parent → Exports → *Seed content* (loads passages + items into the live bank; idempotent). Or run `schema/seed/0002_content.sql` in the SQL editor.
+- [ ] Golden marking set (20 answers) — draft after the first real marked answers exist; re-run on model change (GAPS #4)
+- [ ] Passage bank target is ≥ 40 (GAPS #3): 16 shipped; the bank refill writes more reading items from them, and `POST /admin/refill-bank` can be pointed at new passages once the key exists
 ### Phase 4 — Coach state machine, explanations, voice, Today order, first-run tour
 ### Phase 5 — Parent view polish, weekly PDF, CSV, KPI panel, design pass
 ### Phase 6 — Year engine: FSRS-lite wiring, Knowledge Check, learn-ahead, MAP mock, simulation

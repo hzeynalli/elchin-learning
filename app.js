@@ -119,6 +119,8 @@
           <p class="muted small">Finds out what you really know. About 25 questions per sitting; you can stop and continue later.</p>
           <button class="btn full secondary" data-act="start" data-mode="targeted" data-subject="Mathematics">Targeted check — Mathematics</button>
           <p class="muted small">15 questions on the skills that need work.</p>
+          <button class="btn full secondary" data-act="start" data-mode="reading" data-subject="Reading">Reading — one passage</button>
+          <p class="muted small">Read a short passage and answer 5–6 questions. Do this at least four days a week.</p>
           ${['Reading', 'Language Usage', 'Science'].map((s) => `<button class="btn full secondary" data-act="start" data-mode="diagnostic" data-subject="${s}">General check — ${s}</button>`).join('')}
           <p class="muted small">Reading, Language Usage and Science questions come from the item bank (Phase 3).</p>
         </div></section>
@@ -195,6 +197,7 @@
     if (it.format === 'mc4') return `<div class="options">${it.options.map((o, i) => `<button class="opt ${run.input === 'ABCD'[i] ? 'on' : ''}" data-pick="${'ABCD'[i]}">${esc(o)}</button>`).join('')}</div>`;
     if (it.format === 'multi_select') return `<p class="muted small">Choose all that are correct.</p><div class="options">${it.options.map((o, i) => `<button class="opt ${run.picked.has('ABCDEFGH'[i]) ? 'on' : ''}" data-toggle="${'ABCDEFGH'[i]}">${esc(o)}</button>`).join('')}</div>`;
     if (it.format === 'ordering') { const order = run.order || it.options; return `<p class="muted small">Use the arrows to put them in order (top = smallest / first).</p><ol class="orderlist">${order.map((o, i) => `<li><span>${esc(o)}</span><span><button class="mini" data-move="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mini" data-move="${i}" data-dir="1" ${i === order.length - 1 ? 'disabled' : ''}>▼</button></span></li>`).join('')}</ol>`; }
+    if (it.format === 'short_text' || it.format === 'writing') return `<textarea class="answer" id="answer" rows="${it.format === 'writing' ? 8 : 3}" placeholder="${it.format === 'writing' ? 'Write here…' : 'Type your answer in a sentence or two'}">${esc(run.input ?? '')}</textarea>`;
     return `<input type="text" class="answer" id="answer" autocomplete="off" inputmode="${it.format === 'numeric' ? 'decimal' : 'text'}" placeholder="Your answer" value="${esc(run.input ?? '')}">`;
   }
   function renderFeedback(fb, it) {
@@ -221,7 +224,7 @@
   }
   function afterRender() {
     const t = $('#timer'); if (t && state.run && !state.run.done) { clearInterval(state.timer); state.timer = setInterval(() => { const el = $('#timer'); if (!el) return clearInterval(state.timer); const elapsed = Math.round((Date.now() - state.run.startedAt) / 1000); const lim = $('#limit'); let extra = ''; if (lim && !state.run.feedback) { const left = Number(lim.dataset.limit) - Math.round((Date.now() - state.run.itemStart) / 1000); extra = ` · <span id="limit" data-limit="${lim.dataset.limit}">${Math.max(0, left)}s</span>`; if (left <= 0 && !state.busy) { checkAnswer(); return; } } el.innerHTML = mmss(elapsed) + extra; }, 500); }
-    const a = $('#answer'); if (a) { a.focus(); a.addEventListener('input', () => { state.run.input = a.value; }); a.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); }); }
+    const a = $('#answer'); if (a) { a.focus(); a.addEventListener('input', () => { state.run.input = a.value; }); a.addEventListener('keydown', (e) => { if (e.key === 'Enter' && a.tagName !== 'TEXTAREA') checkAnswer(); }); }
   }
 
   // ---------------------------------------------------------------- progress
@@ -287,7 +290,18 @@
       </div>
       <div class="row"><button class="btn" data-act="submit-manual" ${state.busy ? 'disabled' : ''}>Save scorecard</button><span class="muted small">${Object.keys(mk).length} of ${t.questions.length} marked</span></div></section>`;
   }
-  function pQueue(d) { return `<section class="card"><h2>Marking queue</h2><p class="muted">Open answers the AI marked with confidence below 0.8 plus a 10 % sample appear here (Phase 3). ${d.marking_queue_count ? `${d.marking_queue_count} waiting.` : 'Nothing waiting.'}</p></section>`; }
+  function pQueue(d) {
+    if (!state.queue) { api('/marking-queue').then((r) => { state.queue = r.queue; render(); }).catch((e) => { state.queue = []; state.error = e.message; render(); }); return '<section class="card"><h2>Marking queue</h2><p class="muted">Loading…</p></section>'; }
+    if (!state.queue.length) return '<section class="card"><h2>Marking queue</h2><p class="muted">Nothing waiting. Open answers the AI marked with confidence below 0.8, plus a 10 % random sample, appear here.</p></section>';
+    return `<section class="card"><h2>Marking queue <span class="muted" style="font-size:.6em">${state.queue.length} to review</span></h2>
+      ${state.queue.map((q) => `<div class="qitem"><div class="row spread"><span><b>${esc(skillName(d, q.skill_id))}</b> <span class="muted small">${esc(q.skill_id)} · tier ${q.tier} · ${q.why === 'random_sample' ? 'random sample' : `AI confidence ${q.confidence}`}</span></span><span class="muted small">${fmtDate(q.answered_at)}</span></div>
+        ${q.passage_title ? `<div class="muted small">Passage: ${esc(q.passage_title)}</div>` : ''}
+        <p style="margin:6px 0"><span class="muted small">Question</span><br>${esc(q.stem)}</p>
+        <p style="margin:6px 0"><span class="muted small">Rubric / expected</span><br>${esc(q.rubric || '—')}</p>
+        <p style="margin:6px 0;background:var(--porcelain);padding:8px 10px"><span class="muted small">Elchin wrote</span><br>${esc(q.answer_given || '(blank)')}</p>
+        <p class="small muted">AI: ${q.llm_correct ? 'correct' : 'not correct'}${q.llm_partial != null ? ` · partial ${q.llm_partial}` : ''}${q.llm_feedback ? ` · "${esc(q.llm_feedback)}"` : ''}</p>
+        <div class="row"><button class="btn small copper" data-act="pmark" data-id="${q.id}" data-correct="1">✓ Correct</button><button class="btn small secondary" data-act="pmark" data-id="${q.id}" data-correct="0">✗ Not correct</button><input type="text" placeholder="Optional feedback to Elchin" data-fb="${q.id}" style="flex:1;min-width:200px"></div></div>`).join('')}</section>`;
+  }
   function pTranscripts(d) {
     if (!d.coach_sessions.length) return '<section class="card"><h2>Coach transcripts</h2><p class="muted">No coach sessions yet.</p></section>';
     return `<section class="card"><h2>Coach transcripts</h2><table><tr><th>Date</th><th>Skill</th><th>State</th><th class="num">Cycle</th><th class="num">Turns</th><th>Outcome</th><th>Parent summary</th></tr>
@@ -319,12 +333,17 @@
         <div><button class="btn small">Save settings</button></div></form>
       <h3 style="margin-top:20px">Mastery thresholds (read-only)</h3><p class="muted small">Pass rate ${s.pass_rate ?? 0.9} · regression below ${s.regress_rate ?? 0.7} · qualifying test ≥ 3 items · fluency ≤ 3 s per item. These are data, not opinion (docs/02 §3); change them only by a deliberate decision in the schema.</p></section>`;
   }
-  function pExports() { return '<section class="card"><h2>Exports</h2><p class="muted">Weekly one-page PDF for the teacher and CSV export arrive in Phase 5.</p></section>'; }
+  function pExports(d) {
+    return `<div class="grid"><section class="card"><h2>Exports</h2><p class="muted">Weekly one-page PDF for the teacher and CSV export arrive in Phase 5.</p></section>
+      <section class="card"><h2>Item bank</h2><p class="muted small">Reading, Language Usage and Science questions come from a verified bank. Seed loads the hand-written starter content; Refill asks Claude to top up every skill below 10 items per tier (needs the API key; costs a few cents).</p>
+        <div class="row"><button class="btn small" data-act="seed">Seed content</button><button class="btn small secondary" data-act="refill">Refill bank now</button><button class="btn small secondary" data-act="bank-status">Show stock</button></div>
+        ${state.bank ? `<table style="margin-top:12px"><tr><th>Skill</th><th class="num">P</th><th class="num">t1</th><th class="num">t2</th><th class="num">t3</th></tr>${state.bank.skills.map((s) => `<tr><td>${esc(s.name)} <span class="muted small">${esc(s.skill_id)}</span></td><td class="num">${s.priority}</td>${s.stock.map((n) => `<td class="num ${n < state.bank.min ? 'muted' : 'ok'}">${n}</td>`).join('')}</tr>`).join('')}</table>` : ''}</section></div>`;
+  }
 
   // ---------------------------------------------------------------- events
   function bind(root) {
     root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { state.tab = b.dataset.tab; localStorage.setItem('elchin.tab', state.tab); state.error = null; state.notice = null; render(); }));
-    root.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => { state.ptab = b.dataset.ptab; state.error = null; state.notice = null; render(); }));
+    root.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => { state.ptab = b.dataset.ptab; state.error = null; state.notice = null; if (state.ptab === 'queue') state.queue = null; render(); }));
     root.querySelectorAll('[data-mark]').forEach((b) => b.addEventListener('click', () => { const q = b.dataset.mark, v = b.dataset.val === 'yes'; if (state.manual.marks[q] === v) delete state.manual.marks[q]; else state.manual.marks[q] = v; render(); }));
     root.querySelectorAll('[data-manual]').forEach((i) => i.addEventListener('input', () => { state.manual[i.dataset.manual] = i.value; }));
     root.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => { state.run.input = b.dataset.pick; render(); }));
@@ -347,6 +366,10 @@
       else if (name === 'exit-run') { clearInterval(state.timer); state.run = null; state.recent = null; await refresh(); }
       else if (name === 'redeem') { const r = await api('/rewards/redeem', { id: Number(ds.id) }); state.notice = `Redeemed. Balance ${r.balance}.`; await refresh(); }
       else if (name === 'del-reward') { await api('/rewards/delete', { id: Number(ds.id) }); await refresh(); }
+      else if (name === 'pmark') { const fb = document.querySelector(`[data-fb="${ds.id}"]`)?.value || ''; await api('/parent-mark', { item_id: ds.id, correct: ds.correct === '1', feedback: fb || undefined }); state.queue = null; await refresh(); }
+      else if (name === 'seed') { state.busy = true; render(); const r = await api('/admin/seed', {}); state.busy = false; state.notice = `Seeded ${r.passages} passages and ${r.items} items${r.rejected?.length ? `; rejected: ${r.rejected.join('; ')}` : ''}.`; state.bank = null; render(); }
+      else if (name === 'refill') { state.busy = true; render(); const r = await api('/admin/refill-bank', { max_calls: 12 }); state.busy = false; state.notice = `Refill: ${r.generated} items in ${r.calls} calls${r.stopped ? ` (stopped: ${r.stopped})` : ''}${r.skipped?.length ? `; skipped ${r.skipped.length}` : ''}.`; state.bank = null; render(); }
+      else if (name === 'bank-status') { state.bank = await api('/bank/status'); render(); }
       else if (name === 'submit-manual') {
         if (!Object.keys(state.manual.marks).length) throw new Error('Mark at least one question first.');
         state.busy = true; render();
