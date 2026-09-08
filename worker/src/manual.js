@@ -25,7 +25,7 @@ export async function manualEntry({ repo, studentId, profile, body, now = new Da
     if (q.timed_s) {
       // The timed row is six multiplication facts — store six items so the fluency skill gets qualifying evidence and
       // a per-fact time (paper threshold 20 s / 6 ≈ 3.3 s; the app's `fast` rule is ≤ 3 s per fact, docs/02 §3).
-      const facts = q.stem.split(/[:,]/).slice(1).map((s) => s.replace(/\(.*\)/, '').trim()).filter((s) => /×/.test(s));
+      const facts = q.stem.match(/\d+×\d+/g) || [];
       const answers = q.answer.split(',').map((s) => s.trim());
       const perFact = body.q4_seconds ? Math.round((Number(body.q4_seconds) / facts.length) * 10) / 10 : null;
       facts.forEach((f, k) => rows.push({ ...base, position: ++pos, stem_hash: stemHash(f), time_s: perFact, answer_given: mark == null ? null : correct ? answers[k] : '✗',

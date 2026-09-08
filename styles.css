@@ -85,3 +85,19 @@ body.role-parent input, body.role-parent select { min-height: 38px; padding: 8px
 .celebrate { font-family: var(--display); font-size: 1.4rem; color: var(--copper); }
 .notice { border-left: 2px solid var(--copper); padding: 6px 12px; color: var(--taupe); }
 @media (max-width: 640px) { .app { padding: 10px; } .card { padding: 14px; } .headline { gap: 14px; } }
+
+/* question screen (design: one question at a time, huge stem, big option cards, feedback panel) */
+.q .stem { font-size: 1.45rem; line-height: 1.45; color: var(--onyx); margin: 14px 0 18px; }
+.q .passage { background: var(--porcelain); border-left: 2px solid var(--copper); padding: 12px 16px; margin: 10px 0 16px; font-size: 1.05rem; line-height: 1.6; }
+.answer { font-size: 1.4rem; padding: 14px; min-height: 60px; }
+.options { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.opt { text-align: left; background: #fff; border: 1px solid var(--hair); border-radius: var(--radius); padding: 16px 18px; min-height: 60px; cursor: pointer; font-size: 1.1rem; }
+.opt.on { border-color: var(--copper); box-shadow: inset 0 0 0 1px var(--copper); }
+.orderlist { list-style: none; padding: 0; margin: 0; }
+.orderlist li { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--hair); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 8px; font-size: 1.15rem; }
+.mini { border: 1px solid var(--hair); background: #fff; border-radius: var(--radius); min-width: 40px; min-height: 40px; cursor: pointer; margin-left: 4px; }
+.mini:disabled { opacity: .3; }
+.feedback { margin-top: 18px; padding: 16px 18px; border-radius: var(--radius); border: 1px solid var(--hair); background: var(--porcelain); animation: slide .25s ease-out; }
+.feedback.right { border-left: 3px solid var(--copper); } .feedback.right strong { color: var(--copper); }
+.feedback.again { border-left: 3px solid var(--taupe); } .feedback.again strong { color: var(--taupe); }
+@keyframes slide { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }

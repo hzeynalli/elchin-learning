@@ -35,11 +35,12 @@ export function multiNumericEqual(expected, given, tolerance = 0) {
   return ep.length === gp.length && ep.every((e, i) => numericEqual(e, gp[i], tolerance));
 }
 
+const LETTERS = 'ABCDEFGH';
 function letterOf(given, options) {
   const g = normalizeText(given);
-  if (/^[a-d]$/.test(g)) return g.toUpperCase();
+  if (/^[a-h]$/.test(g)) return g.toUpperCase();
   const idx = (options || []).findIndex((o) => normalizeText(o) === g);
-  return idx >= 0 ? 'ABCD'[idx] : null;
+  return idx >= 0 ? LETTERS[idx] : null;
 }
 
 /** @returns {{correct:boolean, marked_by:'rule', partial?:number}|null} null when the format needs the LLM */
@@ -53,7 +54,7 @@ export function markRule(item, given) {
       return { correct: ok, marked_by: 'rule' };
     }
     case 'mc4': {
-      const want = /^[A-D]$/.test(String(item.answer)) ? item.answer : letterOf(item.answer, item.options);
+      const want = /^[A-H]$/.test(String(item.answer)) ? item.answer : letterOf(item.answer, item.options);
       return { correct: letterOf(given, item.options) === want, marked_by: 'rule' };
     }
     case 'multi_select': {
@@ -68,11 +69,42 @@ export function markRule(item, given) {
     }
     case 'fill_blank': {
       const g = normalizeText(given);
-      return { correct: accept.some((a) => normalizeText(a) === g), marked_by: 'rule' };
+      if (accept.some((a) => normalizeText(a) === g)) return { correct: true, marked_by: 'rule' };
+      const chk = item.params?.check;
+      if (chk?.type === 'exprtext') {                       // "write the expression": any correct expression counts, a bare number does not
+        const v = evalArith(given);
+        return { correct: v != null && /[+\-−×x*÷/]/.test(String(given)) && Math.abs(v - chk.value) < 1e-9, marked_by: 'rule' };
+      }
+      return { correct: false, marked_by: 'rule' };
     }
     default:
       return null;                                   // short_text, writing, passage_mc(short) → LLM / parent
   }
+}
+
+/** Safe arithmetic evaluator for student-written expressions: digits, + − × ÷ * / ( ) [ ] { }. Returns null if invalid. */
+export function evalArith(s) {
+  const t = String(s ?? '').replace(/[×x]/gi, '*').replace(/÷/g, '/').replace(/[−–]/g, '-').replace(/[\[{]/g, '(').replace(/[\]}]/g, ')').replace(/,(?=\d{3}\b)/g, '').replace(/\s+/g, '');
+  if (!t || /[^0-9+\-*/().]/.test(t)) return null;
+  const toks = t.match(/\d+\.?\d*|[+\-*/()]/g) || [];
+  const out = [], ops = [], prec = { '+': 1, '-': 1, '*': 2, '/': 2 };
+  const apply = () => { const op = ops.pop(), b = out.pop(), a = out.pop(); if (a == null || b == null) throw 0; out.push(op === '+' ? a + b : op === '-' ? a - b : op === '*' ? a * b : a / b); };
+  try {
+    let prev = null;
+    for (const tok of toks) {
+      if (/\d/.test(tok)) out.push(Number(tok));
+      else if (tok === '(') ops.push(tok);
+      else if (tok === ')') { while (ops.length && ops[ops.length - 1] !== '(') apply(); if (ops.pop() !== '(') throw 0; }
+      else {
+        if (tok === '-' && (prev == null || prev === '(' || prec[prev])) { out.push(0); }   // unary minus
+        while (ops.length && prec[ops[ops.length - 1]] >= prec[tok]) apply();
+        ops.push(tok);
+      }
+      prev = tok;
+    }
+    while (ops.length) { if (ops[ops.length - 1] === '(') throw 0; apply(); }
+    return out.length === 1 && Number.isFinite(out[0]) ? out[0] : null;
+  } catch { return null; }
 }
 
 /** Expected seconds per item by tier and format (docs/07 §2 cadence). */

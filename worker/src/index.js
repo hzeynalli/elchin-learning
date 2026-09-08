@@ -5,6 +5,7 @@ import { dashboard } from './dashboard.js';
 import { manualTemplate, manualEntry } from './manual.js';
 import { rewardsRoutes } from './rewards.js';
 import { settingsRoutes } from './settings.js';
+import { testsRoutes } from './tests.js';
 import { BudgetExceeded } from './anthropic.js';
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -24,6 +25,7 @@ const routes = {
   'POST /manual-entry': (ctx) => manualEntry(ctx),
   ...rewardsRoutes,
   ...settingsRoutes,
+  ...testsRoutes,
 };
 const PARENT_ONLY = new Set(['POST /manual-entry', 'POST /rewards', 'POST /rewards/delete', 'POST /points', 'POST /settings', 'POST /map-results', 'POST /parent-mark', 'GET /export/csv', 'GET /export/weekly.pdf', 'GET /usage']);
 const PUBLIC = new Set(['GET /health']);

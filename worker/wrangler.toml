@@ -23,3 +23,9 @@ TIMEZONE = "Asia/Baku"
 [assets]
 directory = "../"
 not_found_handling = "single-page-application"
+
+# prompts/*.md imported as text (server-side system prompts, CLAUDE.md #3)
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true

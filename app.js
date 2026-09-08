@@ -7,10 +7,11 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: CFG.TIMEZONE }) : '—');
   const pct = (r) => (r == null ? '—' : Math.round(r * 100) + '%');
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const STATUS = { not_yet: 'Not yet', emerging: 'Emerging', secure: 'Secure', mastered: 'Mastered' };
   const SUBJECT_ORDER = ['Mathematics', 'Reading', 'Language Usage', 'Science'];
 
-  const state = { session: null, dash: null, tab: localStorage.getItem('elchin.tab') || 'today', ptab: 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null };
+  const state = { session: null, dash: null, tab: localStorage.getItem('elchin.tab') || 'today', ptab: 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, recent: null };
 
   // ---------------------------------------------------------------- api
   async function api(path, body, method) {
@@ -63,6 +64,7 @@
       <main>${({ today: viewToday, checks: viewChecks, coach: viewCoach, progress: viewProgress, parent: viewParent })[state.tab]?.(d) || ''}</main>
       <footer class="muted small" style="margin:30px 0 10px">${d.llm_mode === 'mock' ? 'Coach is in preview mode (no AI key yet). ' : ''}${d.repo_mode === 'user-rls' ? 'Worker is read-only until the service key is set. ' : ''}</footer>`;
     bind(app);
+    afterRender();
   }
 
   function viewLogin() {
@@ -78,6 +80,7 @@
   function chip(s, extra = '') { return `<span class="chip ${s} ${extra}">${STATUS[s] || s}</span>`; }
   function skillName(d, id) { return d.skills.find((s) => s.id === id)?.name || id; }
 
+  // ---------------------------------------------------------------- today
   function viewToday(d) {
     const u = d.today.urgent;
     return `<div class="grid">
@@ -85,7 +88,7 @@
         <p class="muted">Three things, in this order. Start with the first.</p>
         <ol class="stack">
           <li><strong>Daily review</strong> — ${d.today.review_due.length ? `${d.today.review_due.length} skills due for a quick review.` : 'nothing due yet — it fills up once skills are secure.'} <span class="muted small">(arrives with Phase 4)</span></li>
-          ${u.map((s, i) => `<li><strong>${esc(s.name)}</strong> ${chip(s.status)} <div class="row" style="margin-top:8px"><button class="btn small" data-act="coach" data-skill="${esc(s.id)}">Learn with coach</button><button class="btn small secondary" data-act="check" data-skill="${esc(s.id)}">Take a check</button></div></li>`).join('')}
+          ${u.map((s) => `<li><strong>${esc(s.name)}</strong> ${chip(s.status)} <div class="row" style="margin-top:8px"><button class="btn small" data-act="coach" data-skill="${esc(s.id)}">Learn with coach</button><button class="btn small secondary" data-act="check-skill" data-skill="${esc(s.id)}">Take a check</button></div></li>`).join('')}
           ${u.length === 0 ? '<li>Every priority skill is secure. Time for a memory game.</li>' : ''}
         </ol>
       </section>
@@ -101,9 +104,127 @@
     if (!open.length) return '<p class="muted small" style="margin-top:16px">No rewards set yet.</p>';
     return `<h3 style="margin-top:18px">Rewards</h3>${open.map((r) => `<div class="row spread" style="padding:6px 0;border-top:1px solid var(--hair)"><span>${esc(r.name)} <span class="muted small">${r.cost} pts</span></span>${d.role === 'student' ? `<button class="btn small secondary" data-act="redeem" data-id="${r.id}" ${d.points.balance < r.cost ? 'disabled' : ''}>Redeem</button>` : ''}</div>`).join('')}`;
   }
-  function viewChecks() { return `<section class="card"><h2>Checks</h2><p>Checks (general and targeted) arrive in Phase 2. They will show one question at a time with a small timer and immediate feedback.</p></section>`; }
   function viewCoach() { return `<section class="card"><h2>Coach</h2><p>The coach arrives in Phase 4: explain → practice 10 → confirm 5, with voice.</p></section>`; }
 
+  // ---------------------------------------------------------------- checks (tests)
+  function viewChecks(d) {
+    if (state.run) return viewRunner(d);
+    if (!state.recent) { api('/tests?limit=8').then((r) => { state.recent = r.tests; render(); }).catch(() => { state.recent = []; render(); }); }
+    const openDiag = (state.recent || []).find((t) => t.kind === 'diagnostic' && t.status !== 'complete');
+    return `<div class="grid">
+      <section class="card"><h2>Start a check</h2>
+        ${openDiag ? `<div class="notice" style="margin-bottom:14px">You have a check in progress — ${openDiag.progress?.skills_done ?? 0} of ${openDiag.progress?.skills_total ?? '?'} skills done.<br><button class="btn small" style="margin-top:8px" data-act="start" data-mode="diagnostic" data-subject="${esc(openDiag.subject)}">Continue</button></div>` : ''}
+        <div class="stack">
+          <button class="btn full" data-act="start" data-mode="diagnostic" data-subject="Mathematics">General check — Mathematics</button>
+          <p class="muted small">Finds out what you really know. About 25 questions per sitting; you can stop and continue later.</p>
+          <button class="btn full secondary" data-act="start" data-mode="targeted" data-subject="Mathematics">Targeted check — Mathematics</button>
+          <p class="muted small">15 questions on the skills that need work.</p>
+          ${['Reading', 'Language Usage', 'Science'].map((s) => `<button class="btn full secondary" data-act="start" data-mode="diagnostic" data-subject="${s}">General check — ${s}</button>`).join('')}
+          <p class="muted small">Reading, Language Usage and Science questions come from the item bank (Phase 3).</p>
+        </div></section>
+      <section class="card"><h2>Recent</h2>${state.recent == null ? '<p class="muted">Loading…</p>' : state.recent.length === 0 ? '<p class="muted">No checks yet.</p>' : `<table><tr><th>Date</th><th>Kind</th><th>Subject</th><th class="num">Score</th><th></th></tr>${state.recent.map((t) => `<tr><td>${fmtDate(t.started_at)}</td><td>${esc(t.kind)}</td><td>${esc(t.subject)}</td><td class="num">${t.score == null ? (t.status === 'complete' ? '—' : 'in progress') : pct(t.score)}</td><td>${t.status === 'complete' ? `<button class="btn small secondary" data-act="review-test" data-id="${t.id}">See</button>` : ''}</td></tr>`).join('')}</table>`}</section></div>`;
+  }
+
+  async function startRun(mode, subject, skillIds) {
+    state.busy = true; state.error = null; render();
+    try {
+      const r = await api('/generate-test', { subject, mode, ...(skillIds ? { skill_ids: skillIds } : {}) });
+      state.run = { testId: r.test_id, mode, kind: mode, subject, adaptive: mode === 'diagnostic', item: r.item || null, items: r.items || [], index: 0, answers: {}, startedAt: Date.now(), itemStart: Date.now(), feedback: null, progress: r.progress || null, done: r.test_complete ? r.results : null, sitting: !!r.sitting_complete, input: null, order: null, picked: new Set() };
+      if (!state.run.adaptive && state.run.items.length) state.run.item = state.run.items[0];
+      state.tab = 'checks';
+    } catch (e) { state.error = e.message; }
+    state.busy = false; render();
+  }
+  function currentAnswer(run) {
+    const it = run.item;
+    if (it.format === 'mc4') return run.input;
+    if (it.format === 'multi_select') return [...run.picked].sort();
+    if (it.format === 'ordering') return run.order || it.options;
+    return run.input;
+  }
+  async function checkAnswer() {
+    const run = state.run; if (!run || !run.item) return;
+    const ans = currentAnswer(run);
+    if (ans == null || ans === '' || (Array.isArray(ans) && !ans.length && run.item.format === 'multi_select')) { state.error = 'Type or choose an answer first.'; render(); return; }
+    const time_s = Math.round((Date.now() - run.itemStart) / 1000);
+    state.busy = true; state.error = null; render();
+    try {
+      if (run.adaptive || run.kind === 'practice10' || run.kind === 'confirm5') {
+        const r = await api('/next-item', { test_id: run.testId, last_answer: { item_id: run.item.id, answer: ans, time_s } });
+        run.progress = r.progress || run.progress;
+        if (r.last?.retry) { run.feedback = { retry: true, hint: r.last.hint }; }
+        else { run.feedback = { ...r.last, given: ans }; run.next = r.item || null; run.pendingDone = r.test_complete ? r.results : null; run.pendingSitting = !!r.sitting_complete; run.pendingSummary = r.summary || null; }
+      } else {
+        run.answers[run.item.id] = { item_id: run.item.id, answer: ans, time_s };
+        api('/answer-item', { test_id: run.testId, item_id: run.item.id, answer: ans, time_s }).catch(() => {});
+        run.index++;
+        if (run.index < run.items.length) { run.item = run.items[run.index]; resetInput(run); }
+        else { const r = await api('/submit-test', { test_id: run.testId, answers: Object.values(run.answers), started_at: new Date(run.startedAt).toISOString(), submitted_at: new Date().toISOString() }); run.done = r.results; run.item = null; }
+      }
+    } catch (e) { state.error = e.message; }
+    state.busy = false; render();
+  }
+  function resetInput(run) { run.input = null; run.order = null; run.picked = new Set(); run.itemStart = Date.now(); run.feedback = null; }
+  function nextItem() {
+    const run = state.run;
+    if (run.feedback?.retry) { run.feedback = null; run.itemStart = Date.now(); render(); return; }
+    if (run.pendingDone) { run.done = run.pendingDone; run.item = null; }
+    else if (run.pendingSitting) { run.sitting = true; run.summary = run.pendingSummary; run.item = null; }
+    else { run.item = run.next; resetInput(run); }
+    run.next = null; run.pendingDone = null; run.pendingSitting = false; render();
+  }
+
+  function viewRunner(d) {
+    const run = state.run;
+    if (run.done) return viewResults(run.done);
+    if (run.sitting) return `<section class="card"><h2 class="celebrate">Done for today ✓</h2><p>You finished this sitting. ${run.progress ? `${run.progress.skills_done} of ${run.progress.skills_total} skills done so far.` : ''} Come back tomorrow to continue.</p><button class="btn" data-act="exit-run">Back</button></section>`;
+    const it = run.item; if (!it) return '<section class="card">Loading…</section>';
+    const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
+    const fb = run.feedback;
+    const posText = run.adaptive ? (run.progress ? `${run.progress.sitting_items + 1} of up to ${run.progress.sitting_cap}` : '') : `${run.index + 1} of ${run.items.length}`;
+    return `<section class="card q">
+      <div class="row spread"><span class="muted small">${posText}</span><span class="muted small" id="timer">${mmss(elapsed)}${it.time_limit_s ? ` · <span id="limit" data-limit="${it.time_limit_s}">${it.time_limit_s}s</span>` : ''}</span></div>
+      ${it.passage ? `<div class="passage">${esc(it.passage).replace(/\n/g, '<br>')}</div>` : ''}
+      <p class="stem">${esc(it.stem)}</p>
+      ${fb ? '' : renderInput(it, run)}
+      ${fb ? renderFeedback(fb, it) : `<div class="row" style="margin-top:18px"><button class="btn" data-act="check" ${state.busy ? 'disabled' : ''}>Check</button>${run.adaptive ? '' : `<span class="muted small">Answers are saved as you go.</span>`}</div>`}
+      <div class="row" style="margin-top:22px"><button class="btn small secondary" data-act="exit-run">Stop for now</button></div>
+    </section>`;
+  }
+  function renderInput(it, run) {
+    if (it.format === 'mc4') return `<div class="options">${it.options.map((o, i) => `<button class="opt ${run.input === 'ABCD'[i] ? 'on' : ''}" data-pick="${'ABCD'[i]}">${esc(o)}</button>`).join('')}</div>`;
+    if (it.format === 'multi_select') return `<p class="muted small">Choose all that are correct.</p><div class="options">${it.options.map((o, i) => `<button class="opt ${run.picked.has('ABCDEFGH'[i]) ? 'on' : ''}" data-toggle="${'ABCDEFGH'[i]}">${esc(o)}</button>`).join('')}</div>`;
+    if (it.format === 'ordering') { const order = run.order || it.options; return `<p class="muted small">Use the arrows to put them in order (top = smallest / first).</p><ol class="orderlist">${order.map((o, i) => `<li><span>${esc(o)}</span><span><button class="mini" data-move="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>▲</button><button class="mini" data-move="${i}" data-dir="1" ${i === order.length - 1 ? 'disabled' : ''}>▼</button></span></li>`).join('')}</ol>`; }
+    return `<input type="text" class="answer" id="answer" autocomplete="off" inputmode="${it.format === 'numeric' ? 'decimal' : 'text'}" placeholder="Your answer" value="${esc(run.input ?? '')}">`;
+  }
+  function renderFeedback(fb, it) {
+    if (fb.retry) return `<div class="feedback again"><strong>Look again.</strong> ${esc(fb.hint)}<div class="row" style="margin-top:12px"><button class="btn" data-act="next">Try again</button></div></div>`;
+    const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer;
+    const given = Array.isArray(fb.given) ? fb.given.join(', ') : fb.given;
+    return `<div class="feedback ${fb.correct ? 'right' : 'again'}"><strong>${fb.correct ? '✓ Correct' : 'Not this time'}</strong>${fb.correct ? '' : ` — the answer is <b>${esc(ans)}</b>.`}${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}${fb.correct ? '' : `<div class="muted small" style="margin-top:4px">You wrote: ${esc(given)}</div>`}<div class="row" style="margin-top:12px"><button class="btn" data-act="next">Next</button></div></div>`;
+  }
+  function viewResults(r) {
+    const secured = r.secured?.length ? `<p class="celebrate">Secure ✓ ${r.secured.map(esc).join(', ')}</p>` : '';
+    return `<section class="card"><h2>${r.kind === 'diagnostic' ? 'Check complete' : 'Done'}</h2>
+      <div class="metric"><div class="big">${r.correct} <span class="muted" style="font-size:.5em">of ${r.total}</span></div><div class="lbl">correct · +${r.points} points · ${mmss(r.duration_s || 0)}</div></div>${secured}
+      <h3 style="margin-top:18px">By skill</h3>
+      ${r.per_skill.map((s) => `<div class="skill"><div><div>${esc(s.name)}</div><div class="bar"><i style="width:${Math.round(s.rate * 100)}%"></i></div><div class="meta">${s.correct} of ${s.items}${s.status_before !== s.status_after ? ` · ${STATUS[s.status_before]} → <b>${STATUS[s.status_after]}</b>` : ''}</div></div><div>${chip(s.status_after)}</div></div>`).join('')}
+      ${r.next_steps?.length ? `<h3 style="margin-top:18px">What to do next</h3><div class="stack">${r.next_steps.map((n) => `<div class="row spread"><span>${esc(n.name)}</span><button class="btn small" data-act="coach" data-skill="${esc(n.skill_id)}">Learn with coach</button></div>`).join('')}</div>` : ''}
+      <details style="margin-top:18px"><summary class="muted">See every question</summary>${r.items.map((i) => `<div class="skill"><div><div>${esc(i.stem)}</div><div class="meta">You: ${esc(Array.isArray(i.answer_given) ? i.answer_given.join(', ') : i.answer_given ?? '—')} · Answer: ${esc(Array.isArray(i.answer) ? i.answer.join(' → ') : i.answer)}</div></div><div>${i.correct ? '<span class="ok">✓</span>' : '<span class="muted">✗</span>'}</div></div>`).join('')}</details>
+      <div class="row" style="margin-top:20px"><button class="btn" data-act="exit-run">Done for today</button></div></section>`;
+  }
+  async function reviewTest(id) {
+    state.busy = true; render();
+    try { const r = await api(`/test?id=${encodeURIComponent(id)}`); const per = r.test.per_skill || {}; state.run = { done: { kind: r.test.kind, correct: r.items.filter((i) => i.correct).length, total: r.items.filter((i) => i.correct != null).length, points: 0, duration_s: r.test.duration_s, per_skill: Object.entries(per).map(([id, p]) => ({ skill_id: id, name: skillName(state.dash, id), items: p.items, correct: p.correct, rate: p.items ? p.correct / p.items : 0, status_before: '', status_after: state.dash.skills.find((s) => s.id === id)?.status || 'not_yet' })), items: r.items, next_steps: [], secured: [] } }; }
+    catch (e) { state.error = e.message; }
+    state.busy = false; render();
+  }
+  function afterRender() {
+    const t = $('#timer'); if (t && state.run && !state.run.done) { clearInterval(state.timer); state.timer = setInterval(() => { const el = $('#timer'); if (!el) return clearInterval(state.timer); const elapsed = Math.round((Date.now() - state.run.startedAt) / 1000); const lim = $('#limit'); let extra = ''; if (lim && !state.run.feedback) { const left = Number(lim.dataset.limit) - Math.round((Date.now() - state.run.itemStart) / 1000); extra = ` · <span id="limit" data-limit="${lim.dataset.limit}">${Math.max(0, left)}s</span>`; if (left <= 0 && !state.busy) { checkAnswer(); return; } } el.innerHTML = mmss(elapsed) + extra; }, 500); }
+    const a = $('#answer'); if (a) { a.focus(); a.addEventListener('input', () => { state.run.input = a.value; }); a.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkAnswer(); }); }
+  }
+
+  // ---------------------------------------------------------------- progress
   function viewProgress(d) {
     const m = d.metrics;
     const bySubject = {};
@@ -125,7 +246,7 @@
           ${Object.entries(strands).map(([strand, skills]) => `<details class="strand" open><summary>${esc(strand)} <span class="muted small">(${skills.filter(isSec).length}/${skills.length})</span></summary>
             ${skills.map((s) => `<div class="skill"><div><div>${esc(s.name)} ${s.priority === 1 ? '<span class="chip p1" title="due 1 October">due 1 Oct</span>' : ''}</div>
               <div class="meta">${esc(s.standard || '')} · last ${pct(s.last_rate)} · ${s.attempts} attempt${s.attempts === 1 ? '' : 's'} · ${Math.round(s.time_spent_s / 60)} min${s.next_review_at ? ` · review ${fmtDate(s.next_review_at)}` : ''}${s.fast === true ? ' · fast ✓' : s.fast === false ? ' · not yet fast' : ''}</div></div>
-              <div>${chip(s.status)}</div></div>`).join('')}</details>`).join('')}</details>`; }).join('')}
+              <div class="row">${chip(s.status)}${d.role === 'student' && s.subject === 'Mathematics' ? `<button class="mini" title="Quick check on this skill" data-act="check-skill" data-skill="${esc(s.id)}">Check</button>` : ''}</div></div>`).join('')}</details>`).join('')}</details>`; }).join('')}
       </section>`;
   }
 
@@ -206,6 +327,9 @@
     root.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => { state.ptab = b.dataset.ptab; state.error = null; state.notice = null; render(); }));
     root.querySelectorAll('[data-mark]').forEach((b) => b.addEventListener('click', () => { const q = b.dataset.mark, v = b.dataset.val === 'yes'; if (state.manual.marks[q] === v) delete state.manual.marks[q]; else state.manual.marks[q] = v; render(); }));
     root.querySelectorAll('[data-manual]').forEach((i) => i.addEventListener('input', () => { state.manual[i.dataset.manual] = i.value; }));
+    root.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => { state.run.input = b.dataset.pick; render(); }));
+    root.querySelectorAll('[data-toggle]').forEach((b) => b.addEventListener('click', () => { const k = b.dataset.toggle; state.run.picked.has(k) ? state.run.picked.delete(k) : state.run.picked.add(k); render(); }));
+    root.querySelectorAll('[data-move]').forEach((b) => b.addEventListener('click', () => { const run = state.run; const order = (run.order || run.item.options).slice(); const i = Number(b.dataset.move), j = i + Number(b.dataset.dir); [order[i], order[j]] = [order[j], order[i]]; run.order = order; render(); }));
     root.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => act(b.dataset.act, b.dataset)));
     root.querySelectorAll('form[data-form]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); submit(f.dataset.form, Object.fromEntries(new FormData(f).entries())); }));
   }
@@ -215,7 +339,12 @@
       if (name === 'logout') { await sb.auth.signOut(); state.session = null; state.dash = null; render(); }
       else if (name === 'retry') await refresh();
       else if (name === 'coach') { state.tab = 'coach'; render(); }
-      else if (name === 'check') { state.tab = 'checks'; render(); }
+      else if (name === 'start') await startRun(ds.mode, ds.subject);
+      else if (name === 'check-skill') await startRun('diagnostic', 'Mathematics', [ds.skill]);
+      else if (name === 'check') await checkAnswer();
+      else if (name === 'next') nextItem();
+      else if (name === 'review-test') await reviewTest(ds.id);
+      else if (name === 'exit-run') { clearInterval(state.timer); state.run = null; state.recent = null; await refresh(); }
       else if (name === 'redeem') { const r = await api('/rewards/redeem', { id: Number(ds.id) }); state.notice = `Redeemed. Balance ${r.balance}.`; await refresh(); }
       else if (name === 'del-reward') { await api('/rewards/delete', { id: Number(ds.id) }); await refresh(); }
       else if (name === 'submit-manual') {
