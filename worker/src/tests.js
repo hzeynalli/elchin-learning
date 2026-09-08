@@ -127,9 +127,10 @@ export const testsRoutes = {
     }
     if (test.kind !== 'diagnostic') {                          // practice/confirm sets are pre-generated: serve the next unanswered
       const items = await repo.getTestItems(test.id);
-      const next = items.find((i) => i.correct == null);
+      const open = items.filter((i) => i.correct == null && !i.item?.voided);   // voided = tier-3 slip replaced by the coach
+      const next = open[0];
       if (!next) { const results = await finalizeTest(env, repo, { test, studentId, profile, now: nowIso }); return { last, test_complete: true, results }; }
-      return { last, item: publicItem(next), remaining: items.filter((i) => i.correct == null).length };
+      return { last, item: publicItem(next), remaining: open.length };
     }
     const next = await serveNext(repo, { env, studentId, test, byId, states: stateBy, now: nowIso, profile });
     return { last, progress: progressOf(test.plan), ...next };

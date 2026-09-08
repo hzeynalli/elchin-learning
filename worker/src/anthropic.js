@@ -46,7 +46,10 @@ async function record(repo, model, purpose, usage) {
 }
 function buildParams(env, { model, system, messages, max_tokens, effort }) {
   const params = { model, max_tokens: max_tokens ?? 1024, messages };
-  if (system) params.system = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
+  // system: a string (cached as one block) or an array of blocks — put the stable text first, cache_control on it,
+  // volatile per-turn values after (docs/08: prompt caching for the coach system prompt + skill explanation)
+  if (Array.isArray(system)) params.system = system.map((b, i) => (typeof b === 'string' ? { type: 'text', text: b, ...(i === 0 ? { cache_control: { type: 'ephemeral' } } : {}) } : b));
+  else if (system) params.system = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
   if (effort && !model.startsWith('claude-haiku')) params.output_config = { effort };
   return params;
 }
@@ -89,8 +92,8 @@ export async function llmStreamResponse(env, repo, o, onFinal, extraHeaders = {}
     const stream = new ReadableStream({
       async start(c) {
         for (const word of m.text.split(/(?<=\s)/)) { c.enqueue(enc.encode(`data: ${JSON.stringify({ delta: word })}\n\n`)); }
-        c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, text: m.text })}\n\n`)); c.close();
-        if (onFinal) await onFinal(m.text, null);
+        let meta = null; try { meta = onFinal ? await onFinal(m.text, null) : null; } catch (e) { meta = { error: e.message }; }
+        c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, text: m.text, meta })}\n\n`)); c.close();
       },
     });
     return new Response(stream, { headers });
@@ -107,8 +110,8 @@ export async function llmStreamResponse(env, repo, o, onFinal, extraHeaders = {}
         const final = await s.finalMessage();
         await record(repo, o.model, o.purpose, final.usage);
         if (final.stop_reason === 'refusal') { text = o.refusalText || "Let's get back to our skill — what do you think the first step is?"; c.enqueue(enc.encode(`data: ${JSON.stringify({ delta: text, refusal: true })}\n\n`)); }
-        c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, text })}\n\n`));
-        if (onFinal) await onFinal(text, final.usage);
+        let meta = null; try { meta = onFinal ? await onFinal(text, final.usage) : null; } catch (e) { meta = { error: e.message }; }
+        c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, text, meta })}\n\n`));
       } catch (e) {
         c.enqueue(enc.encode(`data: ${JSON.stringify({ error: e.message })}\n\n`));
       } finally { c.close(); }
@@ -131,7 +134,8 @@ function mock(o) {
       const json = { correct: rate >= 0.5, partial: Math.round(rate * 100) / 100, confidence: 0.6, feedback: rate >= 0.5 ? 'You named the key idea — nice.' : 'Look again at the question: what exactly is it asking you to show?' };
       return { text: JSON.stringify(json), json, usage: null, mock: true };
     }
-    case 'verify': return { text: '{"ok":true,"reason":"mock"}', json: { ok: true, reason: 'mock' }, usage: null, mock: true };
+    case 'verify': return { text: '{"ok":true,"slip":true,"reason":"mock"}', json: { ok: true, slip: true, reason: 'mock' }, usage: null, mock: true };
+    case 'solve': return { text: '{"answer":null}', json: { answer: null }, usage: null, mock: true };
     case 'guard': return { text: '{"off_topic":false}', json: { off_topic: false }, usage: null, mock: true };
     case 'generate': {
       const n = Number(/Count:\s*(\d+)/.exec(userText)?.[1] || 3);
