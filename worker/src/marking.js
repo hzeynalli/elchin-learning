@@ -4,7 +4,7 @@
 export function normalizeText(s) {
   return String(s ?? '').trim().toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ').replace(/\s*([=×x*÷/+−–-])\s*/g, '$1');
 }
-const stripThousands = (s) => s.replace(/(\d),(?=\d{3}\b)/g, '$1');
+const stripThousands = (s) => s.replace(/(\d)[, ](?=\d{3}\b)/g, '$1');   // accepts 22,722 and 22 722
 
 /** Parse "492 r 5", "492 remainder 5", "492r5" → {q, r}; else null */
 export function parseRemainder(s) {

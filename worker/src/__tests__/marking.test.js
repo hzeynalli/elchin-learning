@@ -4,7 +4,7 @@ import { markRule, numericEqual, parseNumber, cadenceFlag, expectedSeconds } fro
 describe('numeric normalisation', () => {
   it('commas, spaces, trailing zeros, fraction forms', () => {
     expect(numericEqual('1,058', '1058')).toBe(true);
-    expect(numericEqual('22,722', ' 22 722'.replace(' ', ''))).toBe(true);
+    expect(numericEqual('22,722', '22 722')).toBe(true);   // space as thousands separator
     expect(numericEqual('0.5', '0.50')).toBe(true);
     expect(numericEqual('1/2', '3/6')).toBe(true);
     expect(numericEqual('1 1/2', '1.5')).toBe(true);

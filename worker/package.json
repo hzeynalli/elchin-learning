@@ -11,6 +11,7 @@
     "simulate": "node scripts/simulate-year.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@supabase/supabase-js": "^2.116.0",
     "jose": "^6.2.12",
     "pdf-lib": "^1.17.1"
