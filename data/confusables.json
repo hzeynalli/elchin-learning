@@ -1,0 +1,13 @@
+{
+  "note": "Interference rule (docs/06 §2): never schedule both skills of a pair in the same session until both are Secure.",
+  "pairs": [
+    ["G4.MD.1", "5.MD.3"],
+    ["5.NBT.3", "5.NBT.4"],
+    ["5.NF.4", "5.NF.7"],
+    ["5.OA.1", "5.OA.2"],
+    ["LU.M.1", "LU.M.2"],
+    ["LU.G.2", "LU.G.3"],
+    ["RD.RL.2", "RD.RI.2"],
+    ["SC.PS1.2", "SC.PS1.4"]
+  ]
+}
