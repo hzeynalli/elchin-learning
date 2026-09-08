@@ -2,6 +2,7 @@
 import { urgencyScore } from './mastery.js';
 import { dueSkills } from './scheduler.js';
 import { activeSeconds } from './telemetry.js';
+import { learnAheadFor } from './year.js';
 import units from '../../data/qsi_engaged_units.json' with { type: 'json' };
 
 const DAY = 86400000;
@@ -51,14 +52,19 @@ export async function dashboard({ repo, profile, studentId, env, now = new Date(
 
   // today plan (Phase 1 shape; Phase 4 fills the fixed daily order)
   const reviewDue = dueSkills(states, nowIso).map((s) => s.skill_id);
-  const today = { urgent: urgency.slice(0, 3), review_due: reviewDue.slice(0, 10), learn_ahead: [] };
+  const learnAhead = learnAheadFor(skills, statusOf, nowIso).map((id) => ({ id, name: rows.find((r) => r.id === id)?.name || id }));
+  const today = { urgent: urgency.slice(0, 3), review_due: reviewDue.slice(0, 10), learn_ahead: learnAhead };
+  // retention rate (docs/07 §3): mastered skills that held vs those that regressed in the last 30 days
+  const regressed30 = (await repo.getEvents(studentId, iso(now.getTime() - 30 * DAY), 'skill_regressed')).length;
+  const masteredNow = rows.filter((r) => r.state.status === 'mastered').length;
+  const retention = masteredNow + regressed30 ? Math.round((100 * masteredNow) / (masteredNow + regressed30)) / 100 : null;
 
   return {
     now: nowIso, role: profile.role, student: { id: studentId, name: student?.display_name || 'Elchin', settings: student?.settings || {} },
     metrics: { p1_total: p1.length, p1_secure: p1Secure, p1_pct: p1.length ? Math.round((100 * p1Secure) / p1.length) : 0, days_to_due: daysToDue, due_date: env.DUE_DATE || '2026-10-01',
       velocity_per_week: velocityPerWeek, projected_date: projectedDate, minutes_this_week: minutesThisWeek, minutes_target_week: target, items_this_week: answered.length,
       focus_ratio: telemetry.length ? Math.round((activeSeconds(telemetry, { now }) / Math.max(1, (now.getTime() - new Date(telemetry[0].at).getTime()) / 1000)) * 100) / 100 : null,
-      guessing_rate: answered.length ? Math.round((100 * guessing) / answered.length) / 100 : 0, streak_days: streak,
+      guessing_rate: answered.length ? Math.round((100 * guessing) / answered.length) / 100 : 0, streak_days: streak, retention_rate: retention,
       secure_total: rows.filter((r) => isSecure(r.state.status)).length, mastered_total: rows.filter((r) => r.state.status === 'mastered').length, skills_total: rows.length },
     skills: rows.map((r) => ({ id: r.id, subject: r.subject, strand: r.strand, qsi_unit: r.qsi_unit, standard: r.standard, name: r.name, grade: r.grade, priority: r.priority, prerequisites: r.prerequisites, planned_month: r.planned_month, fluency: r.fluency, map_area: r.map_area,
       status: r.state.status, last_rate: r.state.last_rate, attempts: r.state.attempts || 0, items_seen: r.state.items_seen || 0, time_spent_s: r.state.time_spent_s || 0, next_review_at: r.state.next_review_at || null, fast: r.state.fast ?? null, loop_state: r.state.loop_state || null, stability: r.state.stability ?? null })),

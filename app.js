@@ -121,6 +121,7 @@
           ${step(2, 'Learn with the coach', urgent ? `${esc(urgent.name)} ${chip(urgent.status)}` : 'Every priority skill is secure — pick any skill in the Coach tab.', coachToday, urgent ? `<button class="btn small" data-act="coach" data-skill="${esc(urgent.id)}">Start</button>` : '')}
           ${step(3, 'Read a passage', 'One short passage, 5–6 questions. At least four days a week.', doneKinds.has('reading'), `<button class="btn small" data-act="start" data-mode="reading" data-subject="Reading">Start</button>`)}
           ${openDiag ? step(4, 'Continue your check', `${openDiag.progress?.skills_done ?? 0} of ${openDiag.progress?.skills_total ?? '?'} skills done.`, false, `<button class="btn small secondary" data-act="start" data-mode="diagnostic" data-subject="${esc(openDiag.subject)}">Continue</button>`) : ''}
+          ${d.today.learn_ahead?.length ? step(openDiag ? 5 : 4, 'Learn ahead', `Get a head start on next month: ${d.today.learn_ahead.map((s) => esc(s.name)).join(' · ')}`, false, `<button class="btn small secondary" data-act="coach" data-skill="${esc(d.today.learn_ahead[0].id)}">Start</button>`) : ''}
         </ol>
         ${doneKinds.has('reading') && coachToday && (doneKinds.has('review') || doneKinds.has('daily_review') || !hasReviewable) ? '<p class="celebrate">Done for today ✓</p>' : ''}
       </section>
@@ -273,6 +274,11 @@
           <button class="btn full secondary" data-act="start" data-mode="reading" data-subject="Reading">Reading — one passage</button>
           <p class="muted small">Read a short passage and answer 5–6 questions. Do this at least four days a week.</p>
           ${['Reading', 'Language Usage', 'Science'].map((s) => `<button class="btn full secondary" data-act="start" data-mode="diagnostic" data-subject="${s}">General check — ${s}</button>`).join('')}
+          <h3 style="margin-top:14px">Games</h3>
+          <button class="btn full secondary" data-act="special" data-mode="knowledge_check">Memory game — 20 questions on skills you know</button>
+          <p class="muted small">Once a month. No hints — let's see what stuck. Points for every one you remember.</p>
+          <button class="btn full secondary" data-act="special" data-mode="map_mock" data-subject="Mathematics">MAP-style practice — Mathematics (40)</button>
+          <p class="muted small">Like the school's MAP test: mixed topics, untimed. Shows which area to work on.</p>
         </div></section>
       <section class="card"><h2>Recent</h2>${state.recent == null ? '<p class="muted">Loading…</p>' : state.recent.length === 0 ? '<p class="muted">No checks yet.</p>' : `<table><tr><th>Date</th><th>Kind</th><th>Subject</th><th class="num">Score</th><th></th></tr>${state.recent.map((t) => `<tr><td>${fmtDate(t.started_at)}</td><td>${esc(t.kind)}</td><td>${esc(t.subject)}</td><td class="num">${t.score == null ? (t.status === 'complete' ? '—' : 'in progress') : pct(t.score)}</td><td>${t.status === 'complete' ? `<button class="btn small secondary" data-act="review-test" data-id="${t.id}">See</button>` : ''}</td></tr>`).join('')}</table>`}</section></div>`;
   }
@@ -280,7 +286,7 @@
   async function startRun(mode, subject, skillIds) {
     state.busy = true; state.error = null; render();
     try {
-      const r = await api('/generate-test', { subject, mode, ...(skillIds ? { skill_ids: skillIds } : {}) });
+      const r = mode === 'knowledge_check' ? await api('/knowledge-check', {}) : mode === 'map_mock' ? await api('/map-mock', { subject }) : await api('/generate-test', { subject, mode, ...(skillIds ? { skill_ids: skillIds } : {}) });
       state.run = { testId: r.test_id, mode, kind: mode, subject, adaptive: mode === 'diagnostic', item: r.item || null, items: r.items || [], index: 0, answers: {}, startedAt: Date.now(), itemStart: Date.now(), feedback: null, progress: r.progress || null, done: r.test_complete ? r.results : null, sitting: !!r.sitting_complete, input: null, order: null, picked: new Set(), passage: r.passage || null };
       if (!state.run.adaptive && state.run.items.length) state.run.item = state.run.items[0];
       state.tab = 'checks';
@@ -376,8 +382,10 @@
   }
   function viewResults(r) {
     const secured = r.secured?.length ? `<p class="celebrate">Secure ✓ ${r.secured.map(esc).join(', ')}</p>` : '';
-    return `<section class="card"><h2>${r.kind === 'diagnostic' ? 'Check complete' : 'Done'}</h2>
-      <div class="metric"><div class="big">${r.correct} <span class="muted" style="font-size:.5em">of ${r.total}</span></div><div class="lbl">correct · +${r.points} points · ${mmss(r.duration_s || 0)}</div></div>${secured}
+    const areas = r.by_area?.length ? `<h3 style="margin-top:18px">By area</h3>${r.by_area.map((a) => `<div class="skill"><div><div>${esc(a.area)}</div><div class="bar"><i style="width:${Math.round(a.rate * 100)}%"></i></div><div class="meta">${a.correct} of ${a.items}</div></div><div>${a === r.by_area[0] ? '<span class="chip emerging">work here next</span>' : ''}</div></div>`).join('')}` : '';
+    const regressed = r.regressed?.length ? `<p class="notice">Back to practice: ${r.regressed.map(esc).join(', ')}</p>` : '';
+    return `<section class="card"><h2>${r.kind === 'diagnostic' ? 'Check complete' : r.kind === 'knowledge_check' ? 'Memory game' : 'Done'}</h2>
+      <div class="metric"><div class="big">${r.correct} <span class="muted" style="font-size:.5em">of ${r.total}</span></div><div class="lbl">correct · +${r.points} points · ${mmss(r.duration_s || 0)}</div></div>${secured}${regressed}${areas}
       <h3 style="margin-top:18px">By skill</h3>
       ${r.per_skill.map((s) => `<div class="skill"><div><div>${esc(s.name)}</div><div class="bar"><i style="width:${Math.round(s.rate * 100)}%"></i></div><div class="meta">${s.correct} of ${s.items}${s.status_before !== s.status_after ? ` · ${STATUS[s.status_before]} → <b>${STATUS[s.status_after]}</b>` : ''}</div></div><div>${chip(s.status_after)}</div></div>`).join('')}
       ${r.next_steps?.length ? `<h3 style="margin-top:18px">What to do next</h3><div class="stack">${r.next_steps.map((n) => `<div class="row spread"><span>${esc(n.name)}</span><button class="btn small" data-act="coach" data-skill="${esc(n.skill_id)}">Learn with coach</button></div>`).join('')}</div>` : ''}
@@ -440,7 +448,10 @@
         <div class="metric"><div class="big">${m.projected_date ? fmtDate(m.projected_date) : '—'}</div><div class="lbl">projected: all priority-1 secure</div></div>
         <div class="metric"><div class="big">${Math.round(m.guessing_rate * 100)}%</div><div class="lbl">guessing rate (fast + wrong)</div></div>
         <div class="metric"><div class="big">${m.mastered_total}</div><div class="lbl">mastered (retained)</div></div>
-      </div></section>
+        <div class="metric"><div class="big">${m.retention_rate == null ? '—' : Math.round(m.retention_rate * 100) + '%'}</div><div class="lbl">retention rate (30 days)</div></div>
+        <div class="metric"><div class="big">${m.streak_days}</div><div class="lbl">day streak</div></div>
+      </div>
+      <p class="muted small" style="margin-top:12px">Weekly 10-minute review together (docs/07 §4): lead with one KPI that went up, one to work on, one thing he chooses. Never lead with focus ratio.</p></section>
       <section class="card"><h2>Urgency — top 15</h2><table><tr><th>#</th><th>Skill</th><th>Subject</th><th class="num">Priority</th><th>Status</th><th class="num">Last</th><th class="num">Score</th></tr>
         ${d.urgency.map((u, i) => `<tr><td>${i + 1}</td><td>${esc(u.name)} <span class="muted small">${esc(u.id)}</span></td><td>${esc(u.subject)}</td><td class="num">${u.priority}</td><td>${chip(u.status)}</td><td class="num">${pct(u.last_rate)}</td><td class="num">${u.score}</td></tr>`).join('')}</table>
         <p class="muted small">score = 3·(priority 1 and not secure) + 2·(blocked dependents) + 1·(days overdue) + 1·(not yet)</p></section>`;
@@ -507,7 +518,10 @@
       <h3 style="margin-top:20px">Mastery thresholds (read-only)</h3><p class="muted small">Pass rate ${s.pass_rate ?? 0.9} · regression below ${s.regress_rate ?? 0.7} · qualifying test ≥ 3 items · fluency ≤ 3 s per item · coach block 30 min · coach cap 60 min/day. These are data, not opinion (docs/02 §3); change them only by a deliberate decision in the schema.</p></section>`;
   }
   function pExports(d) {
-    return `<div class="grid"><section class="card"><h2>Exports</h2><p class="muted">Weekly one-page PDF for the teacher and CSV export arrive in Phase 5.</p></section>
+    return `<div class="grid"><section class="card"><h2>Exports</h2><p class="muted small">The weekly PDF is a one-page report for the class teacher: skills by status, minutes, what was secured, next steps. CSVs are your backup.</p>
+        <div class="row" style="margin-bottom:10px"><button class="btn small" data-act="download" data-path="/export/weekly.pdf" data-name="elchin-week.pdf">Weekly PDF for the teacher</button></div>
+        <div class="row">${['skill_state', 'tests', 'test_items', 'coach_sessions', 'points', 'map_results'].map((t) => `<button class="btn small secondary" data-act="download" data-path="/export/csv?table=${t}" data-name="${t}.csv">${t}.csv</button>`).join('')}</div>
+        <p class="muted small" style="margin-top:10px">Retention rate: ${d.metrics.retention_rate == null ? '— (no mastered skills yet)' : Math.round(d.metrics.retention_rate * 100) + '% of mastered skills held over the last 30 days'}.</p></section>
       <section class="card"><h2>Item bank</h2><p class="muted small">Reading, Language Usage and Science questions come from a verified bank. Seed loads the hand-written starter content; Refill asks Claude to top up every skill below 10 items per tier (needs the API key; costs a few cents).</p>
         <div class="row"><button class="btn small" data-act="seed">Seed content</button><button class="btn small secondary" data-act="refill">Refill bank now</button><button class="btn small secondary" data-act="bank-status">Show stock</button></div>
         ${state.bank ? `<table style="margin-top:12px"><tr><th>Skill</th><th class="num">P</th><th class="num">t1</th><th class="num">t2</th><th class="num">t3</th></tr>${state.bank.skills.map((s) => `<tr><td>${esc(s.name)} <span class="muted small">${esc(s.skill_id)}</span></td><td class="num">${s.priority}</td>${s.stock.map((n) => `<td class="num ${n < state.bank.min ? 'muted' : 'ok'}">${n}</td>`).join('')}</tr>`).join('')}</table>` : ''}</section></div>`;
@@ -542,6 +556,8 @@
       else if (name === 'coach-end') { if (state.coach?.session_id) await coachTurn({ event: { type: 'end' } }, { silent: true }); else { state.coach = null; render(); } }
       else if (name === 'show-step') { const c = state.coach; const r = await api('/coach', { session_id: c.session_id, skill_id: c.skill_id, event: { type: 'show_step', stem: state.run.item.stem } }); c.stepHint = r.reply; c.messages.push({ role: 'assistant', content: r.reply }); c.wrongStreak = 0; if (c.autoRead) speak(r.reply); render(); }
       else if (name === 'start') await startRun(ds.mode, ds.subject);
+      else if (name === 'special') await startRun(ds.mode, ds.subject || 'Mathematics');
+      else if (name === 'download') { const r = await fetch(CFG.WORKER_URL + ds.path, { headers: { Authorization: `Bearer ${state.session.access_token}` } }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ds.name; a.click(); }
       else if (name === 'check-skill') await startRun('diagnostic', 'Mathematics', [ds.skill]);
       else if (name === 'check') { if (state.coach) state.coach.stepHint = null; await checkAnswer(); }
       else if (name === 'next') await nextItem();

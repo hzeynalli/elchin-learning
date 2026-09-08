@@ -45,7 +45,7 @@ export async function recomputeSkill(repo, { studentId, skill, settings, now = n
   else if (isSecure(st.status)) { Object.assign(row, { stability: p.stability ?? 2, next_review_at: p.next_review_at ?? null, last_review_at: p.last_review_at ?? null, review_stage: p.review_stage ?? 0 }); if (st.status === 'mastered' && p.status !== 'mastered') transition = 'mastered'; }
   else { Object.assign(row, { stability: null, next_review_at: null, last_review_at: p.last_review_at ?? null, review_stage: 0 }); if (isSecure(p.status)) transition = 'regressed'; }
   await repo.upsertSkillState(row);
-  if (transition) await repo.insertEvent({ student_id: studentId, kind: `skill_${transition}`, payload: { skill_id: skill.id, status: st.status, last_rate: st.last_rate } }).catch(() => {});
+  if (transition) await repo.insertEvent({ student_id: studentId, kind: `skill_${transition}`, payload: { skill_id: skill.id, status: st.status, last_rate: st.last_rate }, at: now }).catch(() => {});
   return { row, transition };
 }
 

@@ -8,6 +8,8 @@ import { recomputeSkills } from './recompute.js';
 import { pointsFor } from './items.js';
 import { llm } from './anthropic.js';
 import { shuffle, rngFor } from './rng.js';
+import { planDailyReview } from './scheduler.js';
+import { applyReviewOutcomes, areaSummary, CONFUSABLE_PAIRS } from './year.js';
 import markPrompt from '../prompts/mark_prompt.md';
 
 const ADAPTIVE = new Set(['diagnostic']);
@@ -54,10 +56,17 @@ function specsForMode({ mode, skills, stateBy, subject, skillId, rng }) {
     return tiers.map((tier, i) => ({ skill_id: skillId, tier, position: i + 1 }));
   }
   if (mode === 'review' || mode === 'daily_review') {
-    const pool = mode === 'review' ? dueSkills(Object.values(stateBy), new Date().toISOString()).map((s) => s.skill_id)
-      : skills.filter((s) => ['emerging', 'secure', 'mastered'].includes(stateBy[s.id]?.status)).map((s) => s.id);
+    const statusOf = Object.fromEntries(Object.values(stateBy).map((s) => [s.skill_id, s.status]));
+    // scheduled reviews: most overdue first, ≤ 10, confusable pairs never together until both are Secure (docs/06 §2)
+    const due = planDailyReview(Object.values(stateBy), { now: new Date().toISOString(), cap: 10, confusables: CONFUSABLE_PAIRS, statusOf });
+    let pool = mode === 'review' ? due : [];
+    if (!pool.length) {                                        // daily mixed retrieval over Emerging/Secure skills
+      const partner = new Map(); for (const [a, b] of CONFUSABLE_PAIRS) { partner.set(a, b); partner.set(b, a); }
+      const cands = shuffle(rng, skills.filter((s) => ['emerging', 'secure', 'mastered'].includes(stateBy[s.id]?.status)).map((s) => s.id));
+      for (const id of cands) { const o = partner.get(id); if (o && pool.includes(o) && !(isSecure(statusOf[id]) && isSecure(statusOf[o]))) continue; pool.push(id); if (pool.length >= 10) break; }
+    }
     if (!pool.length) throw bad('Nothing to review yet — secure a skill first.');
-    const chosen = shuffle(rng, pool).slice(0, 10);
+    const chosen = pool.slice(0, 10);
     const specs = []; let i = 0;
     while (specs.length < 10) { const id = chosen[i % chosen.length]; specs.push({ skill_id: id, tier: specs.length % 3 === 2 ? 3 : 2, position: specs.length + 1 }); i++; }
     return specs;
@@ -201,18 +210,31 @@ export async function finalizeTest(env, repo, { test, studentId, profile, now })
   const before = Object.fromEntries(Object.keys(per).map((id) => [id, stateBy[id]?.status || 'not_yet']));
   const student = profile.role === 'student' ? profile : await repo.getProfile(studentId);
   const settings = student?.settings || {};
+  // retention engine first (FSRS outcome for reviews, implicit credit to prerequisites), then mastery recompute
+  const states = await repo.getSkillStates(studentId);
+  const scheduling = await applyReviewOutcomes(repo, { studentId, test, items, per, skillsById: byId, states, settings, now }).catch((e) => { console.warn('review outcomes', e.message); return []; });
   const recomputed = await recomputeSkills(repo, { studentId, skillIds: Object.keys(per), settings, now });
   const after = Object.fromEntries(recomputed.map((r) => [r.row.skill_id, r.row.status]));
   const durationS = test.started_at ? Math.max(0, Math.round((new Date(now) - new Date(test.started_at)) / 1000)) : answered.reduce((a, r) => a + (r.time_s || 0), 0);
   const score = answered.length ? Math.round((100 * right) / answered.length) / 100 : null;
   await repo.updateTest(test.id, { status: 'complete', submitted_at: now, duration_s: durationS, score, per_skill: per });
-  const pts = answered.reduce((a, r) => a + pointsFor(r.tier, r.correct), 0);
-  if (pts > 0) await repo.addPoints({ student_id: studentId, delta: pts, reason: `${test.kind}: ${right} correct` });
+  // points (docs/02 §3b): tier-weighted per correct answer; +5 once per review day
+  const answerPts = answered.reduce((a, r) => a + pointsFor(r.tier, r.correct), 0);
+  if (answerPts > 0) await repo.addPoints({ student_id: studentId, delta: answerPts, reason: `${test.kind}: ${right} correct` });
+  let bonus = 0;
+  if (['review', 'daily_review', 'knowledge_check'].includes(test.kind)) {
+    const today = String(now).slice(0, 10);
+    const already = (await repo.getPoints(studentId)).some((p) => p.reason === 'review day' && String(p.at).slice(0, 10) === today);
+    if (!already) { bonus = 5; await repo.addPoints({ student_id: studentId, delta: 5, reason: 'review day' }); }
+  }
+  const pts = answerPts + bonus;
   await repo.insertEvent({ student_id: studentId, kind: 'test_complete', payload: { test_id: test.id, kind: test.kind, score, items: answered.length } });
   const per_skill = Object.entries(per).map(([id, p]) => ({ skill_id: id, name: byId[id]?.name || id, priority: byId[id]?.priority, items: p.items, correct: p.correct, rate: Math.round((100 * p.correct) / p.items) / 100, status_before: before[id], status_after: after[id] || before[id] }));
   const weak = per_skill.filter((s) => s.rate < 0.9).sort((a, b) => a.rate - b.rate);
   return { test_id: test.id, kind: test.kind, subject: test.subject, score, correct: right, total: answered.length, duration_s: durationS, points: pts, per_skill,
     items: items.map((r) => ({ ...publicItem(r), answer_given: r.answer_given, correct: r.correct, time_s: r.time_s, ...feedbackItem(r), feedback: r.feedback })),
     next_steps: weak.slice(0, 3).map((s) => ({ skill_id: s.skill_id, name: s.name, action: 'coach' })),
-    secured: per_skill.filter((s) => !isSecure(s.status_before) && isSecure(s.status_after)).map((s) => s.name) };
+    secured: per_skill.filter((s) => !isSecure(s.status_before) && isSecure(s.status_after)).map((s) => s.name),
+    scheduling, by_area: test.kind === 'map_mock' ? areaSummary(items, byId) : undefined,
+    regressed: per_skill.filter((s) => isSecure(s.status_before) && !isSecure(s.status_after)).map((s) => s.name) };
 }
