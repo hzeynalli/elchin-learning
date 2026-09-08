@@ -1,0 +1,25 @@
+name = "elchin-learning"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Item-bank refill (BRIEF §6): keep ≥ 10 verified unused items per (skill, tier).
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+# Comma-separated. GitHub Pages origin first; local dev origins after. Locked in src/index.js.
+ALLOWED_ORIGINS = "https://hzeynalli.github.io,http://localhost:8000,http://localhost:8788,http://127.0.0.1:8000"
+MODEL_COACH = "claude-fable-5-1"
+MODEL_GEN   = "claude-sonnet-5"
+MODEL_GUARD = "claude-haiku-4-5-20251001"
+DAILY_BUDGET_USD = "3"
+TIMEZONE = "Asia/Baku"
+# Secrets (never here): ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID
+# Set with: npx wrangler secret put NAME     (local dev: worker/.dev.vars, see .dev.vars.example)
+
+# Optional: serve the front-end from the Worker itself (keeps the GitHub repo private; GitHub Pages needs a public repo
+# on the free plan). The repo root IS the site; .assetsignore at the root hides everything that is not the app.
+[assets]
+directory = "../"
+not_found_handling = "single-page-application"

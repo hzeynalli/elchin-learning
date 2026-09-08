@@ -1,0 +1,14 @@
+# Only index.html, app.js, styles.css, config.js and the fonts/icons the page needs are served as static assets.
+.git/
+.github/
+worker/
+docs/
+data/
+prompts/
+schema/
+scripts/
+design/
+*.md
+.env*
+.gitignore
+.assetsignore

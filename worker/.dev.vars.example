@@ -1,0 +1,7 @@
+# Copy to worker/.dev.vars for `npx wrangler dev` (gitignored). Production: `npx wrangler secret put NAME`.
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_KEY=<service_role key from Supabase → Project Settings → API>
+ANTHROPIC_API_KEY=sk-ant-...
+# Leave empty to run the coach/marking in MOCK mode (no LLM calls; deterministic canned replies for UI testing).
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICE_ID=
