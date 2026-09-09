@@ -2,6 +2,7 @@ name = "elchin-learning"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true   # do not wipe variables/secrets added in the Cloudflare dashboard on deploy
 
 # Item-bank refill (BRIEF §6): keep ≥ 10 verified unused items per (skill, tier).
 [triggers]

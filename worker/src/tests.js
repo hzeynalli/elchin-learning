@@ -84,7 +84,7 @@ export const testsRoutes = {
     if (mode === 'diagnostic' || mode === 'targeted') {
       const student = profile.role === 'student' ? profile : await repo.getProfile(studentId);
       const unlocked = student?.settings?.unlocked_skills;
-      if (Array.isArray(unlocked)) { const set = new Set(unlocked); skills = skills.filter((s) => set.has(s.id)); if (!skills.length) throw bad('No unlocked topics in this subject yet — ask your dad to unlock some.'); }
+      if (Array.isArray(unlocked)) { const set = new Set(unlocked); skills = skills.filter((s) => set.has(s.id)); if (!skills.some((s) => s.subject === subject)) throw bad(`No open topics in ${subject} yet — ask Dad to unlock some.`); }
     }
     const nowIso = now.toISOString();
     if (mode === 'diagnostic') {

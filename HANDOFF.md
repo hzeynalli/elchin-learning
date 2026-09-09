@@ -39,7 +39,10 @@ What changed in the code:
   The Worker's own Seed/Refill hit Cloudflare's **50-subrequests-per-invocation** limit (free plan); `bank.js` now reads
   stock and stem hashes in one query each and refills 2–3 Claude calls per invocation (cron every 15 min keeps going).
   `node --import ./scripts/md-loader.mjs scripts/seed-local.js --refill 8` runs bigger batches locally if `ANTHROPIC_API_KEY` is in `.env`.
-- **Not deployed yet** (needs `npx wrangler login` on the office laptop): topic unlocking enforcement + the subrequest fix.
+- **Deployed 9 Sep 15:30** from the office laptop (wrangler logged in as h.e.zeynalli@gmail.com): topic unlocking enforcement + the subrequest fix. Verified live: parent sets `unlocked_skills`, student gets checks only on those topics.
+- **Lesson:** `wrangler deploy` wiped the two secrets that had been added in the Cloudflare dashboard. Secrets must be set with
+  `npx wrangler secret put NAME` (they then survive deploys); `keep_vars = true` is now in wrangler.toml as a second guard.
+  `SUPABASE_SERVICE_KEY` was re-set from `.env`; **`ANTHROPIC_API_KEY` must be re-set** (`/health` shows `llm: mock` until then).
 
 ## ▶ START HERE (office, 9 Sep): connect the two API keys
 
