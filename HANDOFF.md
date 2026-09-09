@@ -10,6 +10,22 @@ Still missing: the two secrets (service_role, Anthropic key), seeding the live b
 
 ---
 
+## ▶ START HERE (office, 9 Sep): connect the two API keys
+
+The app is already live at **https://hzeynalli.github.io/elchin-learning/** (Worker deployed, Pages on). Only two
+secrets are missing. On the office laptop:
+
+```
+git clone https://github.com/hzeynalli/elchin-learning ~/Projects/elchin-learning   # or open the OneDrive copy
+cd ~/Projects/elchin-learning/worker && npm install
+npx wrangler login                                 # one browser click (Cloudflare account h.e.zeynalli@gmail.com)
+npx wrangler secret put SUPABASE_SERVICE_KEY       # Supabase → Project Settings → API → service_role (Reveal)
+npx wrangler secret put ANTHROPIC_API_KEY          # platform.claude.com → API keys
+```
+No redeploy needed. Then log in as parent (huseyn@zeynalli.me, password in `.env`) → Parent → *Exports & admin* →
+**Seed content**, then **Refill bank now**. Check the footer no longer says "preview mode" / "read-only".
+Then continue with §6 (open items).
+
 ## 0. How to resume at the office (about 30 minutes to a working app)
 
 1. `git clone https://github.com/hzeynalli/elchin-learning ~/Projects/elchin-learning` (or open the OneDrive copy).
