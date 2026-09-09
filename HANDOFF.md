@@ -5,8 +5,8 @@
 (`hzeynalli/elchin-learning`, private, branch `main`). The OneDrive copy at `90 Claude Workspace/Projects/elchin-learning/`
 mirrors the repo without `node_modules`/`.git` and includes `.env` (logins + public keys).
 
-Last updated: 2026-09-09 02:05 Baku — **all six phases built and unit-tested (205 tests)**. Not yet done, because this
-laptop could not: deploy the Worker, set the three secrets, seed the live item bank, run against the real Claude API.
+Last updated: 2026-09-09 09:30 Baku — **all six phases built and unit-tested (205 tests); Worker DEPLOYED; GitHub Pages ON.**
+Still missing: the two secrets (service_role, Anthropic key), seeding the live bank, the first run against the real Claude API.
 
 ---
 
@@ -16,7 +16,7 @@ laptop could not: deploy the Worker, set the three secrets, seed the live item b
 2. Copy `.env` from the OneDrive folder into the repo root. It holds the two logins and the public Supabase keys.
 3. `cd worker && npm install && npm test` → **205 passed**. `node scripts/simulate-year.js` → ACCEPTANCE: PASS.
 4. Get the secrets this laptop could not obtain (§2): Anthropic API key, Supabase `service_role` key.
-5. `cd worker && npx wrangler login` (one browser click). Then:
+5. ~~`npx wrangler login`~~ done on the MacBook (redo on the office laptop if deploying from there). Then:
    ```
    npx wrangler secret put SUPABASE_URL            # https://vwyrphshpikkpbybghye.supabase.co
    npx wrangler secret put SUPABASE_ANON_KEY       # from .env
@@ -43,7 +43,8 @@ laptop could not: deploy the Worker, set the three secrets, seed the live item b
 | Seeds | `schema/seed/0001_skills.sql` (**applied**: 102 skills, 35 priority-1); `0002_content.sql` (passages + items — apply via *Seed content* button or the SQL editor); `0003_explanations.sql` (optional owner-editable copies) |
 | Logins | parent `huseyn@zeynalli.me`, student `elchin@zeynalli.me` — passwords in `.env`; change in Supabase → Auth → Users if you wish |
 | GitHub | https://github.com/hzeynalli/elchin-learning (private, `main`) |
-| Cloudflare | account connected; **no Worker deployed yet** |
+| Cloudflare | **deployed**: https://elchin-learning.hzeynalli.workers.dev (account f07c33aa…, subdomain `hzeynalli`, logged in with wrangler on the MacBook); secrets set so far: SUPABASE_URL, SUPABASE_ANON_KEY |
+| App URL | **https://hzeynalli.github.io/elchin-learning/** (GitHub Pages, repo made public 9 Sep) — or the Worker URL itself (same site) |
 | Worker | `worker/src/` — `index.js` (router, CORS, JWT, roles) · `auth.js` (JWKS ES256) · `repo.js` (two Supabase clients) · `mastery.js` · `scheduler.js` (FSRS-lite) · `adaptive.js` · `marking.js` · `recompute.js` · `dashboard.js` · `manual.js` · `tests.js` · `itemgen.js` · `bank.js` · `parent.js` · `coach.js` · `voice.js` · `export.js` · `year.js` · `telemetry.js` · `anthropic.js` · `items.js` · `readability.js` |
 | Generators | `worker/generators/math/` — 38 files, one per maths skill, `lib.js` helpers; `generators/__tests__/math.test.js` independent verifier |
 | Content | `data/passages/` (16), `data/items/` (136 LU + science), `data/explanations/` (35 canonical explanations), `data/qsi_crosswalk.json`, `data/confusables.json` |
@@ -58,7 +59,7 @@ laptop could not: deploy the Worker, set the three secrets, seed the live item b
    **mock mode** (deterministic canned replies; the footer says "preview mode"). Create at platform.claude.com.
 2. **Supabase service_role key** — the MCP connector can only read publishable keys. Without it the Worker answers
    every *write* with 503 (`… needs SUPABASE_SERVICE_KEY`). Reads work with the user's own JWT.
-3. **`npx wrangler login`** — the Cloudflare connector cannot deploy.
+3. ~~`npx wrangler login`~~ done 9 Sep; Worker deployed. Remaining secrets: `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY` (then `npx wrangler deploy` is NOT needed again — secrets apply immediately).
 4. **Seed + refill the bank** (§0 step 7). Reading / LU / Science checks return 503 until then.
 5. Later: **ElevenLabs** key + voice id (`ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; optional `ELEVENLABS_TTS_MODEL`,
    `ELEVENLABS_STT_MODEL` — verify current ids against ElevenLabs docs; defaults `eleven_v3` / `scribe_v1`). Until then
