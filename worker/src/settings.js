@@ -1,6 +1,6 @@
 // Parent settings (BRIEF §7 screen 5) and MAP RIT entry (docs/01). Mastery thresholds are read-only in the UI
 // (CLAUDE.md #5): changing pass_rate / regress_rate needs a deliberate decision, so this endpoint refuses them.
-const EDITABLE = new Set(['daily_minutes', 'voice', 'russian_fallback', 'tier3_slip_replacement', 'coach_block_minutes', 'daily_cap_minutes', 'auto_read']);
+const EDITABLE = new Set(['daily_minutes', 'voice', 'russian_fallback', 'tier3_slip_replacement', 'coach_block_minutes', 'daily_cap_minutes', 'auto_read', 'unlocked_skills']);
 
 export const settingsRoutes = {
   'POST /settings': async ({ repo, studentId, body }) => {
@@ -12,6 +12,12 @@ export const settingsRoutes = {
     }
     const settings = { ...(student.settings || {}), ...patch };
     if (settings.daily_minutes != null && !(settings.daily_minutes >= 10 && settings.daily_minutes <= 180)) throw Object.assign(new Error('daily_minutes 10–180'), { status: 400 });
+    // unlocked_skills: the parent's list of topics Elchin may be tested on (null = everything). Validated against the skill map.
+    if (settings.unlocked_skills != null) {
+      if (!Array.isArray(settings.unlocked_skills) || !settings.unlocked_skills.every((x) => typeof x === 'string')) throw Object.assign(new Error('unlocked_skills must be a list of skill ids'), { status: 400 });
+      const known = new Set((await repo.getSkills()).map((s) => s.id));
+      settings.unlocked_skills = [...new Set(settings.unlocked_skills.filter((id) => known.has(id)))];
+    }
     await repo.updateProfile(studentId, { settings });
     return { settings };
   },

@@ -10,6 +10,26 @@ Still missing: the two secrets (service_role, Anthropic key), seeding the live b
 
 ---
 
+## 9 Sep (office) — scope change and redesign
+
+**Decision (Huseyn, 9 Sep):** park the AI coach and voice. The app now *tests, tracks and reports*; a human tutor teaches
+the weak topics. Elchin is quizzed only on topics his dad has **unlocked** (last year's Grade-4 topics first, then Grade 5
+semester by semester).
+
+What changed in the code:
+- `config.js` → `FEATURES: { coach: false, voice: false }` (flip to bring the Coach tab, transcripts and voice back — nothing
+  was deleted) and `TERMS` (Last year = grade 4; Semester 1 = planned month < 2027-02; Semester 2 = the rest).
+- **Topic unlocking**: `settings.unlocked_skills` (array of skill ids, `null` = everything open) — no schema change.
+  `worker/src/settings.js` accepts and validates it; `POST /generate-test` (diagnostic + targeted) draws only from unlocked
+  topics. Parent UI: Parent → **Unlock topics** (checkbox table by subject × term, Open/Lock all, gating switch, Save).
+  **The Worker must be redeployed for this** (`cd worker && npx wrangler deploy`) — needs `wrangler login` on this laptop.
+- **New front-end skin** ("Overworld", Minecraft-inspired) — `styles.css`, `index.html`, `app.js`; register documented in
+  `design/design-language.md`. Student tabs: Home (three daily quests) · Quests · Map (topics as blocks, locked = bedrock).
+- **Preview mode**: `?preview=1` (`&role=parent`, `&tab=map`, `&start=diagnostic`) shows every screen with fictional data,
+  nothing written. Live: https://hzeynalli.github.io/elchin-learning/?preview=1
+- The `.env` OneDrive mirror described below **never reached the cloud** (checked 9 Sep from the office); the two passwords
+  live only in the MacBook's `.env`. Run `scripts/sync-to-onedrive.sh` at home, or reset them in Supabase → Auth → Users.
+
 ## ▶ START HERE (office, 9 Sep): connect the two API keys
 
 The app is already live at **https://hzeynalli.github.io/elchin-learning/** (Worker deployed, Pages on). Only two

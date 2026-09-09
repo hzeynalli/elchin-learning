@@ -78,7 +78,14 @@ export const testsRoutes = {
   /** body: { subject, mode, skill_ids?, scope?: 'A'|'B'|'all', skill_id?, loop_id? } */
   'POST /generate-test': async ({ env, repo, studentId, profile, body, now }) => {
     const subject = body?.subject || 'Mathematics', mode = body?.mode || 'diagnostic';
-    const { skills, stateBy, byId } = await loadSkills(repo, studentId);
+    let { skills, stateBy, byId } = await loadSkills(repo, studentId);
+    // Parent-controlled unlocking: when the student has settings.unlocked_skills, new diagnostic/targeted checks only draw
+    // from those topics. Reviews are unaffected (they only cover skills that already have a state).
+    if (mode === 'diagnostic' || mode === 'targeted') {
+      const student = profile.role === 'student' ? profile : await repo.getProfile(studentId);
+      const unlocked = student?.settings?.unlocked_skills;
+      if (Array.isArray(unlocked)) { const set = new Set(unlocked); skills = skills.filter((s) => set.has(s.id)); if (!skills.length) throw bad('No unlocked topics in this subject yet — ask your dad to unlock some.'); }
+    }
     const nowIso = now.toISOString();
     if (mode === 'diagnostic') {
       const open = (await repo.getTests(studentId, { kind: 'diagnostic', limit: 5 })).find((t) => t.subject === subject && t.status !== 'complete');

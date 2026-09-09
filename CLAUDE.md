@@ -22,7 +22,8 @@ ElevenLabs `eleven_v3` TTS + Scribe STT through the Worker. Never call either AP
 
 ## Conventions
 - Language: JavaScript (ES modules) in browser and Worker; SQL for Supabase. No TypeScript unless asked.
-- Fonts: Inter (UI/data) + Cormorant Garamond (display). Palette in design/design-language.md.
+- Fonts: Press Start 2P (headings, buttons, HUD) + Nunito (reading text). Minecraft-inspired "Overworld" skin — palette,
+  block textures and words in design/design-language.md. The AI coach/voice are behind `FEATURES` in config.js (off since 9 Sep).
 - Timezone: Asia/Baku. Dates stored as UTC timestamptz.
 - Commit after each working step with a one-line message. Push to `main` only when the phase passes acceptance.
 - Ask before: adding a paid service, changing the data model, changing mastery rules, changing the coach prompt.

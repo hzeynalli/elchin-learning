@@ -1,10 +1,20 @@
 // Public configuration — safe to commit (the anon key is public by design; RLS protects the data).
 // WORKER_URL: set after `npx wrangler deploy` (workers.dev URL) or a custom domain. Dev override without editing:
 //   localStorage.setItem('elchin.worker_url', 'http://localhost:8787')
+// FEATURES: the AI coach and voice are built but switched off for now (decision of 9 Sep 2026: tests + dashboard +
+//   parent-controlled topic unlocking first; a human tutor teaches). Flip to true to bring the Coach tab back.
+// Preview without logging in (design review, no data is written): open the site with ?preview=1  (add &role=parent).
 window.ELCHIN_CONFIG = {
   SUPABASE_URL: 'https://vwyrphshpikkpbybghye.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ3eXJwaHNocGlra3BieWJnaHllIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4OTM2NTMsImV4cCI6MjEwNDQ2OTY1M30.dkQMS8h9C_HdRhp0L3k9v7O4UOVAKShcWyBkeq1VwfE',
   WORKER_URL: (typeof localStorage !== 'undefined' && localStorage.getItem('elchin.worker_url')) || 'https://elchin-learning.hzeynalli.workers.dev',
   DUE_DATE: '2026-10-01',
   TIMEZONE: 'Asia/Baku',
+  FEATURES: { coach: false, voice: false },
+  // Terms shown on the Map and in the parent's Unlock panel. Grade-4 skills are "Last year"; Grade-5 skills split by planned month.
+  TERMS: [
+    { id: 'past', label: 'Last year', hint: 'Grade 4 — make sure nothing was forgotten', match: (s) => Number(s.grade) < 5 },
+    { id: 's1', label: 'Semester 1', hint: 'September to January', match: (s) => !s.planned_month || s.planned_month < '2027-02' },
+    { id: 's2', label: 'Semester 2', hint: 'February to June', match: () => true },
+  ],
 };
