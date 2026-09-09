@@ -54,6 +54,9 @@ export function makeRepo(env, userJwt) {
     },
     bankInsert: (rows) => one(need('bank').from('item_bank').insert(rows).select('id')),
     bankStems: async (skillId) => (await one(need('bank').from('item_bank').select('stem_hash').eq('skill_id', skillId))).map((r) => r.stem_hash),
+    // one round-trip each (the free Cloudflare plan allows 50 subrequests per invocation — never loop these per skill)
+    bankStemsAll: async () => { const m = new Map(); for (const r of await one(need('bank').from('item_bank').select('skill_id,stem_hash').limit(20000))) (m.get(r.skill_id) || m.set(r.skill_id, new Set()).get(r.skill_id)).add(r.stem_hash); return m; },
+    bankStock: async () => { const m = {}; for (const r of await one(need('bank').from('item_bank').select('skill_id,tier').eq('used', false).eq('verified', true).limit(20000))) m[`${r.skill_id}|${r.tier}`] = (m[`${r.skill_id}|${r.tier}`] || 0) + 1; return m; },
     bankLowStock: async (min = 10) => one(need('bank').rpc('bank_low_stock', { min_count: min })).catch(() => []),
     // ---- points & rewards
     getPoints: (sid) => one(ro.from('points').select('*').eq('student_id', sid).order('at', { ascending: false }).limit(200)),

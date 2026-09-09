@@ -34,6 +34,8 @@ export function memoryRepo({ skills = [], profiles = [] } = {}) {
     bankTake: async (skillId, tier, n = 1) => { const rows = db.item_bank.filter((b) => b.skill_id === skillId && b.tier === tier && !b.used && b.verified).slice(0, n); rows.forEach((r) => (r.used = true)); return clone(rows); },
     bankInsert: async (rows) => { const out = rows.map((r) => ({ id: uuid(), verified: false, used: false, created_at: new Date().toISOString(), ...r })); db.item_bank.push(...out); return out.map((r) => ({ id: r.id })); },
     bankStems: async (skillId) => db.item_bank.filter((b) => b.skill_id === skillId).map((b) => b.stem_hash),
+    bankStemsAll: async () => { const m = new Map(); for (const b of db.item_bank) (m.get(b.skill_id) || m.set(b.skill_id, new Set()).get(b.skill_id)).add(b.stem_hash); return m; },
+    bankStock: async () => { const m = {}; for (const b of db.item_bank) if (!b.used && b.verified) m[`${b.skill_id}|${b.tier}`] = (m[`${b.skill_id}|${b.tier}`] || 0) + 1; return m; },
     bankLowStock: async () => [],
     getPoints: async (sid) => clone(db.points.filter((p) => p.student_id === sid)),
     addPoints: async (row) => { const r = { id: seq++, at: new Date().toISOString(), ...row }; db.points.push(r); return clone(r); },

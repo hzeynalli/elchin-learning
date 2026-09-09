@@ -58,14 +58,17 @@ export async function generateBankItems(env, repo, { skill, tier, n = 5, passage
 }
 
 /** Refill every non-maths skill below MIN_STOCK, priority-1 first. Budget-aware. */
-export async function refillBank(env, repo, { min = MIN_STOCK, perCall = 5, maxCalls = 12 } = {}) {
+// maxCalls defaults to 2: one generate call costs ~15 subrequests (hashes, generation, 5 verifications, insert, usage rows) and
+// the free Cloudflare plan allows 50 per invocation. The 15-minute cron keeps topping up; scripts/seed-local.js --refill N runs bigger batches.
+export async function refillBank(env, repo, { min = MIN_STOCK, perCall = 5, maxCalls = 2 } = {}) {
   const skills = (await repo.getSkills()).filter((s) => s.subject !== 'Mathematics').sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
   const passages = await repo.getPassages().catch(() => []);
+  const stock = await repo.bankStock();
   const summary = { generated: 0, calls: 0, skipped: [], stopped: null };
   for (const skill of skills) {
     for (const tier of [1, 2, 3]) {
       if (summary.calls >= maxCalls) { summary.stopped = 'maxCalls'; return summary; }
-      const count = await repo.bankCount(skill.id, tier);
+      const count = stock[`${skill.id}|${tier}`] || 0;
       if (count >= min) continue;
       const passage = skill.subject === 'Reading' && passages.length ? passages[(summary.calls + tier) % passages.length] : null;
       try {
@@ -83,19 +86,20 @@ export async function refillBank(env, repo, { min = MIN_STOCK, perCall = 5, maxC
 /** Load hand-written content (data/items/*.json, data/passages/*.json) into the bank. Idempotent by stem hash. */
 export async function seedFromData(repo, { items = [], passages = [] }) {
   const out = { items: 0, passages: 0, rejected: [] };
+  const known = passages.length ? await repo.getPassages() : [];
   for (const p of passages) {
     const c = checkPassage(p.text, { tier: Math.max(...p.questions.map((q) => q.tier)) >= 3 ? 3 : 2 });
     if (!c.ok) { out.rejected.push(`${p.id}: ${c.problems.join('; ')}`); continue; }
-    const existing = (await repo.getPassages()).find((x) => x.title === p.title);
+    const existing = known.find((x) => x.title === p.title);
     const id = existing?.id || (await repo.insertPassages([{ title: p.title, author: p.author || 'Elchin Learning (original)', origin: p.origin, genre: p.genre, topic: p.topic, text: p.text, word_count: c.words, fk_grade: c.fk_grade, lexile_est: c.lexile_est, questions: p.questions }]))[0].id;
     if (!existing) out.passages++;
     for (const q of p.questions) items.push({ ...q, passage_id: id, passage_title: p.title, generated_by: 'human' });   // text attached at serve time
   }
   const rows = [];
-  const seen = new Map();
+  const seen = await repo.bankStemsAll();
   for (const it of items) {
     const key = it.skill_id;
-    if (!seen.has(key)) seen.set(key, new Set(await repo.bankStems(key)));
+    if (!seen.has(key)) seen.set(key, new Set());
     const h = stemHash(itemKey(it));
     if (seen.get(key).has(h)) continue;
     seen.get(key).add(h);
@@ -107,7 +111,7 @@ export async function seedFromData(repo, { items = [], passages = [] }) {
 }
 
 export const bankRoutes = {
-  'POST /admin/refill-bank': async ({ env, repo, body }) => refillBank(env, repo, { maxCalls: Number(body?.max_calls || 12) }),
+  'POST /admin/refill-bank': async ({ env, repo, body }) => refillBank(env, repo, { maxCalls: Math.min(3, Number(body?.max_calls || 2)) }),
   /** Load the bundled hand-written content (data/passages, data/items) into the live bank. Idempotent. */
   'POST /admin/seed': async ({ repo }) => {
     const [fables, informational, luGM, luW, sci] = await Promise.all([

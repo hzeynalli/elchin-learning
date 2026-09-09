@@ -30,6 +30,17 @@ What changed in the code:
 - The `.env` OneDrive mirror described below **never reached the cloud** (checked 9 Sep from the office); the two passwords
   live only in the MacBook's `.env`. Run `scripts/sync-to-onedrive.sh` at home, or reset them in Supabase → Auth → Users.
 
+### 9 Sep afternoon — live state
+- Worker secrets **ANTHROPIC_API_KEY** and **SUPABASE_SERVICE_KEY** set via the Cloudflare dashboard → `/health` = `llm: live, repo: service`.
+- **Accounts reset** (old passwords were lost with the un-synced `.env`): parent `huseyn@zeynalli.me`, student now
+  **`e.h.zeynalli@italdizain.az`** (same auth user id, profile rows untouched). Passwords in the office laptop's `.env`
+  (`PARENT_PASSWORD`, `STUDENT_PASSWORD`) — copy that file, do not rely on OneDrive.
+- **Bank seeded** from the laptop (`worker/scripts/seed-local.js`, run with `node --import ./scripts/md-loader.mjs`): 232 items, 16 passages.
+  The Worker's own Seed/Refill hit Cloudflare's **50-subrequests-per-invocation** limit (free plan); `bank.js` now reads
+  stock and stem hashes in one query each and refills 2–3 Claude calls per invocation (cron every 15 min keeps going).
+  `node --import ./scripts/md-loader.mjs scripts/seed-local.js --refill 8` runs bigger batches locally if `ANTHROPIC_API_KEY` is in `.env`.
+- **Not deployed yet** (needs `npx wrangler login` on the office laptop): topic unlocking enforcement + the subrequest fix.
+
 ## ▶ START HERE (office, 9 Sep): connect the two API keys
 
 The app is already live at **https://hzeynalli.github.io/elchin-learning/** (Worker deployed, Pages on). Only two
