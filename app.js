@@ -1,4 +1,4 @@
-/* Elchin Learning — single-page app (BRIEF §7). No framework, no build step. Talks to Supabase Auth directly and to the
+/* E.Z.QUIZY (Elchin Learning) — single-page app (BRIEF §7). No framework, no build step. Talks to Supabase Auth directly and to the
    Cloudflare Worker for everything else. "Overworld" skin (design/design-language.md): quests = checks, map = progress.
    Student UI words: Quest, Check, Try again, Next, Done for today. The AI coach is behind FEATURES.coach (off). */
 (() => {
@@ -81,7 +81,7 @@
     const hearts = Array.from({ length: 10 }, (_, i) => (i < Math.min(10, m.streak_days) ? '<b>♥</b>' : '♥')).join('');
     app.innerHTML = `
       <header class="top">
-        <div class="brand">Elchin Learning<small>${isParent ? 'PARENT VIEW' : `${m.days_to_due} DAYS TO 1 OCTOBER`}</small></div>
+        <div class="brand">E.Z.QUIZY<small>${isParent ? 'PARENT VIEW' : `${m.days_to_due} DAYS TO 1 OCTOBER`}</small></div>
         <div class="hud" aria-label="Level and streak">
           <div class="lbls"><span>LEVEL ${lv.lvl}</span><span>${d.points.balance} POINTS</span></div>
           <div class="xp" role="progressbar" aria-valuenow="${lv.into}" aria-valuemin="0" aria-valuemax="100" aria-label="Points to next level"><i style="width:${lv.into}%"></i><b>${lv.into} / 100</b></div>
@@ -101,7 +101,7 @@
   }
 
   function viewLogin() {
-    return `<div class="login"><div class="brand">Elchin Learning</div><div class="panel"><h2>Sign in</h2>
+    return `<div class="login"><div class="brand">E.Z.QUIZY</div><div class="panel"><h2>Sign in</h2>
       ${state.error ? `<div class="error" role="alert">${esc(state.error)}</div>` : ''}
       <form data-form="login" class="stack">
         <label class="f"><span>EMAIL</span><input type="email" name="email" autocomplete="username" required></label>

@@ -28,7 +28,7 @@ export async function weeklyPdf(report) {
   let y = 800;
   const line = (text, { size = 11, f = font, color = ink, x = 48 } = {}) => { page.drawText(String(text).replace(/[^\x20-\x7E]/g, '?'), { x, y, size, font: f, color }); y -= size + 6; };
   line(`Weekly learning report — ${report.student}`, { size: 20, f: bold });
-  line(`Week ending ${report.week_ending} · prepared by Elchin Learning for the class teacher`, { size: 10, color: ash });
+  line(`Week ending ${report.week_ending} · prepared by E.Z.QUIZY for the class teacher`, { size: 10, color: ash });
   y -= 8;
   line(`Active time this week: ${report.minutes} minutes · questions answered: ${report.items} · coach sessions: ${report.sessions}`, { size: 11 });
   y -= 6;
