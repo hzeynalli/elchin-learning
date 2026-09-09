@@ -6,6 +6,9 @@
 //   Sonnet 5 / Fable 5.1 have no `temperature`: the "temperature 0" in prompts/*.md is approximated with effort "low".
 // - MOCK mode when ANTHROPIC_API_KEY is unset: deterministic canned replies so the whole UI works without a key.
 import Anthropic from '@anthropic-ai/sdk';
+// Organisation-level API keys must name a workspace on every request (400 otherwise). Set the ANTHROPIC_WORKSPACE_ID
+// secret, or use a key created inside a workspace and leave it unset.
+const wsHeaders = (env) => (env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': env.ANTHROPIC_WORKSPACE_ID } : undefined);
 
 // USD per million tokens — platform.claude.com pricing table, Sep 2026 (cache read ≈ 10 % of input except Fable 5.1).
 export const PRICES = {
@@ -61,7 +64,7 @@ function buildParams(env, { model, system, messages, max_tokens, effort }) {
 export async function llm(env, repo, o) {
   await checkBudget(env, repo);
   if (isMock(env)) return mock(o);
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 3 });
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 3, defaultHeaders: wsHeaders(env) });
   const res = await client.messages.create(buildParams(env, o));
   await record(repo, o.model, o.purpose, res.usage);
   if (res.stop_reason === 'refusal') return { refusal: true, category: res.stop_details?.category ?? null, text: '', usage: res.usage };
@@ -98,7 +101,7 @@ export async function llmStreamResponse(env, repo, o, onFinal, extraHeaders = {}
     });
     return new Response(stream, { headers });
   }
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2 });
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2, defaultHeaders: wsHeaders(env) });
   const s = client.messages.stream(buildParams(env, o));
   let text = '';
   const stream = new ReadableStream({
