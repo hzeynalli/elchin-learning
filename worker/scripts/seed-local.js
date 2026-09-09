@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { makeRepo } from '../src/repo.js';
 import { seedFromData, refillBank } from '../src/bank.js';
 const envFile = Object.fromEntries(readFileSync(new URL('../../.env', import.meta.url), 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; }));
-const env = { SUPABASE_URL: 'https://vwyrphshpikkpbybghye.supabase.co', SUPABASE_SERVICE_KEY: envFile.SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY: envFile.ANTHROPIC_API_KEY, MODEL_GEN: 'claude-sonnet-5', MODEL_GUARD: 'claude-haiku-4-5-20251001', DAILY_BUDGET_USD: '3', TIMEZONE: 'Asia/Baku', ...process.env };
+const env = { SUPABASE_URL: 'https://vwyrphshpikkpbybghye.supabase.co', SUPABASE_SERVICE_KEY: envFile.SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY: envFile.ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID: envFile.ANTHROPIC_WORKSPACE_ID, MODEL_GEN: 'claude-sonnet-5', MODEL_GUARD: 'claude-haiku-4-5-20251001', DAILY_BUDGET_USD: '3', TIMEZONE: 'Asia/Baku', ...process.env };
 if (!env.SUPABASE_SERVICE_KEY) { console.error('SUPABASE_SERVICE_KEY missing in .env'); process.exit(1); }
 const repo = makeRepo(env, null);
 const j = (p) => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
