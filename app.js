@@ -20,7 +20,19 @@
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   const isSec = (s) => s.status === 'secure' || s.status === 'mastered';
 
-  const state = { session: null, dash: null, tab: PARAMS.get('tab') || localStorage.getItem('elchin.tab') || 'home', ptab: PARAMS.get('ptab') || 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, recent: null, queue: null, bank: null, coach: null, tour: 0, unlockDraft: null, toast: null };
+  const state = { session: null, dash: null, tab: PARAMS.get('tab') || localStorage.getItem('elchin.tab') || 'home', ptab: PARAMS.get('ptab') || 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, parked: null, recent: null, queue: null, bank: null, coach: null, tour: 0, unlockDraft: null, toast: null };
+  // Boss rounds (10 Sep): a wrong answer in one of these quest kinds summons a boss on that skill; one boss per skill per quest.
+  const BOSS_KINDS = ['diagnostic', 'targeted', 'reading', 'review', 'daily_review'];
+  const shopPrices = (d) => ({ skip: 20, time: 10, ...(d?.student?.settings?.shop_prices || {}) });
+  const bossPoints = (d) => ({ boss: 25, big: 50, ...(d?.student?.settings?.boss_points || {}) });
+  const bossEligible = (run, skillId) => !run.boss && !run.embedded && BOSS_KINDS.includes(run.kind) && state.dash?.student?.settings?.bosses !== false && !run.bossSkills.includes(skillId);
+  const TOUR = [
+    ['Welcome', 'This is your learning world. Every day has a short list of quests. Do them in order and you are done for the day.'],
+    ['Quests', 'A quest is a set of questions. Getting one wrong is normal — it shows what to practise with your tutor.'],
+    ['Bosses', 'Get a question wrong and a BOSS appears. Answer 5 questions right to beat it, one hit each. At the end of a quest the BIG BOSS returns with every boss topic mixed together.'],
+    ['Map', 'The Map shows every topic as a block. Stone = not yet, copper = getting there, grass = secure, diamond = mastered. Dark blocks are locked until Dad opens them.'],
+    ['Points', 'Every correct answer and every beaten boss earns points. Spend them to skip a question, buy extra time, or open a favour from Dad in the Treasure chest.'],
+  ];
   if (!['home', 'quests', 'map', 'coach', 'parent'].includes(state.tab)) state.tab = 'home';
 
   // ---------------------------------------------------------------- terms & unlocking (parent-controlled)
@@ -53,7 +65,7 @@
 
   // ---------------------------------------------------------------- auth
   async function init() {
-    if (PREVIEW) { state.session = { access_token: 'preview' }; await refresh(); if (PARAMS.get('start')) await startRun(PARAMS.get('start'), PARAMS.get('subject') || 'Mathematics'); return; }
+    if (PREVIEW) { state.session = { access_token: 'preview' }; await refresh(); if (PARAMS.get('start')) await startRun(PARAMS.get('start'), PARAMS.get('subject') || 'Mathematics'); if (PARAMS.get('boss') && state.run) { state.run.bossSkills.push(state.run.item.skill_id); await startBoss(PARAMS.get('boss') === 'big' ? 'big_boss' : 'boss', state.run.item.skill_id); } return; }
     const { data } = await sb.auth.getSession();
     state.session = data.session;
     sb.auth.onAuthStateChange((_e, s) => { state.session = s; if (!s) { state.dash = null; render(); } });
@@ -110,12 +122,7 @@
       </form></div></div>`;
   }
   function viewTour() {
-    const steps = [
-      ['Welcome', 'This is your learning world. Every day has a short list of quests. Do them in order and you are done for the day.'],
-      ['Quests', 'A quest is a set of questions. Getting one wrong is normal — it shows what to practise with your tutor.'],
-      ['Map', 'The Map shows every topic as a block. Stone = not yet, copper = getting there, grass = secure, diamond = mastered. Dark blocks are locked until Dad opens them.'],
-      ['Points', 'Every correct answer earns points. 100 points = one level. Dad decides what points can buy.'],
-    ];
+    const steps = TOUR;
     const [t, txt] = steps[state.tour];
     return `<div class="overlay" role="dialog" aria-modal="true" aria-labelledby="tour-title"><div class="panel tour"><div class="muted tiny px">${state.tour + 1} OF ${steps.length}</div><h2 id="tour-title">${t}</h2><p>${txt}</p><div class="row spread"><button class="btn small" data-act="tour-skip">Skip</button><button class="btn go" data-act="tour-next">${state.tour === steps.length - 1 ? 'Start' : 'Next'}</button></div></div></div>`;
   }
@@ -186,19 +193,20 @@
         ${gate ? '' : '<p class="muted small">All topics are open right now.</p>'}
         <div class="quests">${SUBJECT_ORDER.map(card).join('')}</div>
         <h3 style="margin-top:20px">Games</h3>
-        <div class="row"><button class="btn gold" data-act="special" data-mode="knowledge_check">Memory game — 20 questions</button><button class="btn" data-act="special" data-mode="map_mock" data-subject="Mathematics">Boss quest — 40 maths questions</button></div>
-        <p class="muted small">Memory game: once a month, no hints, points for every one you remember. Boss quest: like the school's MAP test, mixed topics, untimed.</p></section>
+        <div class="row"><button class="btn gold" data-act="special" data-mode="knowledge_check">Memory game — 20 questions</button><button class="btn" data-act="special" data-mode="map_mock" data-subject="Mathematics">Arena — 40 maths questions</button></div>
+        <p class="muted small">Memory game: once a month, no hints, points for every one you remember. Arena: like the school's MAP test, mixed topics, untimed. Bosses appear in the other quests when you get a question wrong.</p></section>
       <section class="panel"><h2>Topics</h2><p class="muted small">Dark blocks are locked. Dad opens new topics when the ones before are solid.</p>${CFG.TERMS.map(kidTerm).join('')}</section>
       <section class="panel"><h2>Recent quests</h2>${state.recent == null ? '<p class="muted">Loading…</p>' : state.recent.length === 0 ? '<p class="muted">No quests yet. Pick one above!</p>' : `<div style="overflow-x:auto"><table><tr><th>Date</th><th>Quest</th><th>Subject</th><th class="num">Score</th><th></th></tr>${state.recent.map((t) => `<tr><td>${fmtDate(t.started_at)}</td><td>${esc(kindLabel(t.kind))}</td><td>${esc(SUBJECT_KID[t.subject] || t.subject)}</td><td class="num">${t.score == null ? (t.status === 'complete' ? '—' : 'in progress') : pct(t.score)}</td><td>${t.status === 'complete' ? `<button class="btn small" data-act="review-test" data-id="${t.id}">See</button>` : ''}</td></tr>`).join('')}</table></div>`}</section>`;
   }
-  function kindLabel(k) { return { diagnostic: 'Big quest', targeted: 'Practice quest', reading: 'Story quest', review: 'Daily review', daily_review: 'Daily review', knowledge_check: 'Memory game', map_mock: 'Boss quest', practice10: 'Practice', confirm5: 'Check' }[k] || k; }
+  function kindLabel(k) { return { diagnostic: 'Big quest', targeted: 'Practice quest', reading: 'Story quest', review: 'Daily review', daily_review: 'Daily review', knowledge_check: 'Memory game', map_mock: 'Arena', practice10: 'Practice', confirm5: 'Check', boss: 'Boss', big_boss: 'Big boss' }[k] || k; }
 
   async function startRun(mode, subject, skillIds) {
     state.busy = true; state.error = null; render();
     try {
       const r = mode === 'knowledge_check' ? await api('/knowledge-check', {}) : mode === 'map_mock' ? await api('/map-mock', { subject }) : await api('/generate-test', { subject, mode, ...(skillIds ? { skill_ids: skillIds } : {}) });
-      state.run = { testId: r.test_id, mode, kind: mode, subject, adaptive: mode === 'diagnostic', item: r.item || null, items: r.items || [], index: 0, answers: {}, startedAt: Date.now(), itemStart: Date.now(), feedback: null, progress: r.progress || null, done: r.test_complete ? r.results : null, sitting: !!r.sitting_complete, input: null, order: null, picked: new Set(), passage: r.passage || null };
-      if (!state.run.adaptive && state.run.items.length) state.run.item = state.run.items[0];
+      // every quest except the two blind games goes through /next-item so each answer is marked at once (needed for bosses)
+      state.run = { testId: r.test_id, mode, kind: mode, subject, adaptive: !['knowledge_check', 'map_mock'].includes(mode), item: r.item || null, items: r.items || [], index: 0, answered: 0, total: (r.items || []).length, answers: {}, startedAt: Date.now(), itemStart: Date.now(), feedback: null, progress: r.progress || null, done: r.test_complete ? r.results : null, sitting: !!r.sitting_complete, input: null, order: null, picked: new Set(), passage: r.passage || null, bossSkills: [], bossLog: [] };
+      if (!state.run.item && state.run.items.length) state.run.item = state.run.items[0];
       state.tab = 'quests';
     } catch (e) { state.error = e.message; }
     state.busy = false; render();
@@ -224,6 +232,9 @@
         if (r.last?.retry) { run.feedback = { retry: true, hint: r.last.hint }; if (state.coach) state.coach.wrongStreak++; }
         else {
           run.feedback = { ...r.last, given: ans }; run.next = r.item || null; run.pendingDone = r.test_complete ? r.results : null; run.pendingSitting = !!r.sitting_complete; run.pendingSummary = r.summary || null;
+          run.answered = (run.answered || 0) + 1;
+          if (run.boss) { const b = run.boss; if (r.last?.correct) { b.dmg++; b.fx = 'hit'; } else { b.fx = 'attack'; b.shake = true; } b.attempts++; }
+          else if (r.last?.correct === false && bossEligible(run, run.item.skill_id)) { run.feedback.boss = run.item.skill_id; run.bossSkills.push(run.item.skill_id); }
           if (run.embedded && state.coach) {
             const c = state.coach; c.wrongStreak = r.last?.correct ? 0 : c.wrongStreak + 1;
             if (run.kind === 'practice10') { const comment = await coachComment({ type: 'practice_answer', position: (run.progress?.sitting_items ?? 0), stem: run.item.stem, answer_given: Array.isArray(ans) ? ans.join(', ') : ans, correct: !!r.last?.correct, retry: !!r.last?.retry_used }); if (comment) run.feedback.coach = comment; }
@@ -244,8 +255,10 @@
   async function nextItem() {
     const run = state.run;
     if (run.feedback?.retry) { run.feedback = null; run.itemStart = Date.now(); render(); return; }
+    if (run.boss) return bossNext();
     if (run.pendingDone) {
       if (run.embedded) { const results = run.pendingDone; run.pendingDone = null; await coachSetFinished(results); return; }
+      if (run.bossSkills.length && !run.bigBossDone) { run.finalResults = run.pendingDone; run.pendingDone = null; run.next = null; run.feedback = null; await startBoss('big_boss'); return; }
       run.done = run.pendingDone; run.item = null;
     }
     else if (run.pendingSitting) { run.sitting = true; run.summary = run.pendingSummary; run.item = null; }
@@ -255,12 +268,13 @@
 
   function viewRunner(d) {
     const run = state.run;
+    if (run.boss) return viewBoss(d, run);
     if (run.done) return viewResults(run.done);
     if (run.sitting) return `<section class="panel"><p class="celebrate"><small>QUEST PAUSED</small>Done for today ✓</p><p>You finished this sitting. ${run.progress ? `${run.progress.skills_done} of ${run.progress.skills_total} topics done so far.` : ''} Come back tomorrow to continue.</p><button class="btn go" data-act="exit-run">Back</button></section>`;
     const it = run.item; if (!it) return '<section class="panel">Loading…</section>';
     const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
     const fb = run.feedback;
-    const posText = run.embedded ? `${(run.progress?.sitting_items ?? run.index) + 1} OF ${run.total}` : run.adaptive ? (run.progress ? `${run.progress.sitting_items + 1} OF UP TO ${run.progress.sitting_cap}` : '') : `${run.index + 1} OF ${run.items.length}`;
+    const posText = run.embedded ? `${(run.progress?.sitting_items ?? run.index) + 1} OF ${run.total}` : run.adaptive ? (run.progress ? `${run.progress.sitting_items + 1} OF UP TO ${run.progress.sitting_cap}` : run.total ? `${Math.min(run.answered + 1, run.total)} OF ${run.total}` : '') : `${run.index + 1} OF ${run.items.length}`;
     const showStep = FEAT.coach && run.embedded && state.coach && state.coach.wrongStreak >= 2 && !fb;
     return `<section class="panel paper q">
       <div class="hudline"><span>${esc(kindLabel(run.kind)).toUpperCase()} · ${posText}</span><span class="timer" id="timer">${mmss(elapsed)}${it.time_limit_s ? ` · <span id="limit" data-limit="${it.time_limit_s}">${it.time_limit_s}s</span>` : ''}</span></div>
@@ -268,6 +282,7 @@
       <p class="stem">${esc(it.stem)}</p>
       ${fb ? '' : renderInput(it, run)}
       ${fb ? renderFeedback(fb, it) : `<div class="row" style="margin-top:18px"><button class="btn go ${state.busy ? 'busy' : ''}" data-act="check" ${state.busy ? 'disabled' : ''}>Check</button>${showStep ? '<button class="btn" data-act="show-step">Show me a step</button>' : ''}${run.adaptive ? '' : `<span class="muted small">Answers are saved as you go.</span>`}</div>`}
+      ${fb || run.embedded || d.role !== 'student' ? '' : renderShop(d, run)}
       ${state.coach?.stepHint ? `<div class="feedback" style="margin-top:10px">${esc(state.coach.stepHint)}</div>` : ''}
       <div class="row" style="margin-top:22px"><button class="btn small" data-act="exit-run">Stop for now</button></div>
     </section>`;
@@ -280,6 +295,7 @@
     return `<input type="text" class="answer" id="answer" autocomplete="off" inputmode="${it.format === 'numeric' ? 'decimal' : 'text'}" placeholder="Your answer" value="${esc(run.input ?? '')}" aria-label="Your answer">`;
   }
   function renderFeedback(fb, it) {
+    if (fb.boss) { const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer; return `<div class="feedback again" role="status"><strong>Not this time — a BOSS appears!</strong>The answer was <b>${esc(ans)}</b>.${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<p style="margin:10px 0 0">Beat the boss on this topic to carry on: 5 hits, one per correct answer.</p><div class="row" style="margin-top:12px"><button class="btn gold" data-act="boss-start">⚔ Fight the boss!</button></div></div>`; }
     if (fb.retry) return `<div class="feedback again" role="status"><strong>Look again</strong> ${esc(fb.hint)}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Try again</button></div></div>`;
     const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer;
     const given = Array.isArray(fb.given) ? fb.given.join(', ') : fb.given;
@@ -290,7 +306,9 @@
     const areas = r.by_area?.length ? `<h3 style="margin-top:18px">By area</h3>${r.by_area.map((a) => `<div class="skillrow"><div><div>${esc(a.area)}</div><div class="bar"><i style="width:${Math.round(a.rate * 100)}%"></i></div><div class="meta">${a.correct} of ${a.items}</div></div><div>${a === r.by_area[0] ? '<span class="chip emerging"><span class="block"></span>work here next</span>' : ''}</div></div>`).join('')}` : '';
     const regressed = r.regressed?.length ? `<p class="notice">Back to practice: ${r.regressed.map(esc).join(', ')}</p>` : '';
     const rate = r.total ? r.correct / r.total : 0;
-    return `<section class="panel"><h2>${r.kind === 'diagnostic' ? 'Quest complete' : r.kind === 'knowledge_check' ? 'Memory game' : 'Quest complete'}</h2>
+    const log = state.run?.bossLog || [];
+    const bosses = log.length ? `<div class="bosslog">${log.map((b) => `<span class="chip ${b.won ? 'win' : 'lost'}">${b.kind === 'big_boss' ? '👑' : '⚔'} ${esc(b.name)} · ${b.won ? `beaten +${b.points}` : 'escaped'}</span>`).join('')}</div>` : '';
+    return `<section class="panel"><h2>${r.kind === 'diagnostic' ? 'Quest complete' : r.kind === 'knowledge_check' ? 'Memory game' : 'Quest complete'}</h2>${bosses}
       <div class="result-hero"><div class="score">${r.correct} / ${r.total}<small>+${r.points} POINTS · ${mmss(r.duration_s || 0)}</small></div><div><div class="bar" style="height:20px"><i style="width:${Math.round(rate * 100)}%"></i></div><p class="muted">${rate >= 0.9 ? 'Brilliant — that topic is solid.' : rate >= 0.7 ? 'Good work. A little more practice and it is secure.' : 'Tricky one. This is a good topic to go through with your tutor.'}</p></div></div>${secured}${regressed}${areas}
       <h3 style="margin-top:18px">By topic</h3>
       ${r.per_skill.map((s) => `<div class="skillrow"><div><div><b>${esc(s.name)}</b></div><div class="bar"><i style="width:${Math.round(s.rate * 100)}%"></i></div><div class="meta">${s.correct} of ${s.items}${s.status_before !== s.status_after ? ` · ${STATUS[s.status_before]} → <b>${STATUS[s.status_after]}</b>` : ''}</div></div><div>${chip(s.status_after)}</div></div>`).join('')}
@@ -311,6 +329,133 @@
     const chat = $('#chat'); if (chat) chat.scrollTop = chat.scrollHeight;
     const rd = document.querySelector('[data-toggle-read]'); if (rd) rd.addEventListener('change', () => { state.coach.autoRead = rd.checked; localStorage.setItem('elchin.autoread', rd.checked ? '1' : '0'); });
     if (state.toast) { clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => { state.toast = null; const el = $('.toast'); if (el) el.remove(); }, 4000); }
+  }
+
+  // ---------------------------------------------------------------- BOSS rounds (10 Sep): the quest is parked, a boss run takes its place
+  const BOSSES = [
+    { name: 'Grumble the Golem', px: 13, pal: { a: '#8C8C8C', b: '#5E5E5E', c: '#C46A3A', d: '#2B2B2B' }, map: ['....aaaa....', '...aaaaaa...', '..aabaabaa..', '..aacaacaa..', '..aaaaaaaa..', '...aaddaa...', 'aaaaaaaaaaaa', 'aabaaaaaabaa', 'aabaaaaaabaa', '...aaaaaa...', '...aa..aa...', '..bbb..bbb..'] },
+    { name: 'Slurp the Slime', px: 13, pal: { a: '#3BD05A', b: '#1E8F38', c: '#FFFFFF', d: '#0B3B14' }, map: ['............', '....aaaa....', '..aaaaaaaa..', '.aaacaaacaa.', '.aaadaaadaa.', 'aaaaaaaaaaaa', 'aaaaaaaaaaaa', 'aaaaddddaaaa', 'aaaaaaaaaaaa', '.aaaaaaaaaa.', '..bbbbbbbb..', '............'] },
+    { name: 'Bones the Skeleton', px: 13, pal: { a: '#E8E8E8', b: '#9A9A9A', c: '#1B1230', d: '#7A6A9A' }, map: ['....aaaa....', '...aaaaaa...', '...acaaca...', '...aaaaaa...', '....abba....', '..aaaaaaaa..', '.a.aabbaa.a.', '.a.aaaaaa.a.', '.a.abaaba.a.', '...aaaaaa...', '...aa..aa...', '...bb..bb...'] },
+    { name: 'Wisp the Ghost', px: 13, pal: { a: '#B49CFF', b: '#7A5CE0', c: '#FFFFFF', d: '#2A1B45' }, map: ['....aaaa....', '..aaaaaaaa..', '.aaaaaaaaaa.', '.aacaaaacaa.', '.aadaaaadaa.', 'aaaaaaaaaaaa', 'aaaaadaaaaaa', 'aaaaaaaaaaaa', 'aaaaaaaaaaaa', 'aa.aaaaaa.aa', 'a..aa..aa..a', '...a....a...'] },
+  ];
+  const BIG_BOSS = { name: 'The Dragon King', px: 10, pal: { a: '#3A1B45', b: '#B02A2A', c: '#FCEE4B', d: '#1B0A14', e: '#FF7A1A' }, map: ['......aaaa......', '.....aaaaaa.....', '....aacaacaa....', '....aaaaaaaa....', 'b....aaddaa....b', 'bb...aaaaaa...bb', 'bbb.aaaaaaaa.bbb', 'bbbbaaaaaaaabbbb', '.bbbaaaaaaaabbb.', '..bbaaaaaaaabb..', '...aaaaaaaaaa...', '....aaaaaaaa....', '....aa.aa.aa....', '...aaa.aa.aaa...', '...eee....eee...', '................'] };
+  function bossFor(kind, skillId) { if (kind === 'big_boss') return BIG_BOSS; let h = 0; for (const ch of skillId) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return BOSSES[h % BOSSES.length]; }
+  function sprite(b, fx) {
+    const sh = []; b.map.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') sh.push(`${x * b.px}px ${y * b.px}px 0 ${b.pal[ch] || '#000'}`); }));
+    const size = b.map[0].length * b.px;
+    return `<div class="sprite ${fx || ''}" style="width:${size}px;height:${size}px" role="img" aria-label="${esc(b.name)}"><i style="width:${b.px}px;height:${b.px}px;box-shadow:${sh.join(',')}"></i></div>`;
+  }
+  async function startBoss(kind, skillId) {
+    const parked = state.run; if (!parked) return;
+    state.busy = true; state.error = null; render();
+    try {
+      const body = kind === 'boss' ? { mode: 'boss', skill_id: skillId, parent_test_id: parked.testId } : { mode: 'big_boss', skill_ids: parked.bossSkills, parent_test_id: parked.testId };
+      const r = await api('/generate-test', body);
+      const who = bossFor(kind, skillId || parked.bossSkills[0]);
+      const items = r.items || [];
+      const boss = { kind, skill_id: skillId || null, name: who.name, who, hp: kind === 'boss' ? 5 : items.length, dmg: 0, attempts: 0, batches: 1, fx: 'enter', phase: 'fight', helper: null, helperOpen: false, topic: kind === 'boss' ? skillName(state.dash, skillId) : `${parked.bossSkills.length} topics`, points: 0 };
+      state.parked = parked;
+      state.run = { testId: r.test_id, mode: kind, kind, subject: parked.subject, adaptive: true, item: items[0] || null, items, index: 0, answered: 0, total: items.length, answers: {}, startedAt: Date.now(), itemStart: Date.now(), feedback: null, progress: null, done: null, input: null, order: null, picked: new Set(), bossSkills: [], bossLog: [], boss };
+      state.tab = 'quests';
+    } catch (e) { state.error = e.message; }
+    state.busy = false; render();
+  }
+  async function bossNext() {
+    const run = state.run, b = run.boss;
+    b.fx = ''; b.shake = false;
+    if (b.dmg >= b.hp) return bossWin();
+    if (run.pendingDone || !run.next) {
+      run.pendingDone = null; run.next = null;
+      if (b.batches >= 3) { b.phase = 'retreat'; run.feedback = null; run.item = null; render(); return; }
+      state.busy = true; render();
+      try {
+        const body = b.kind === 'boss' ? { mode: 'boss', skill_id: b.skill_id, parent_test_id: state.parked?.testId } : { mode: 'big_boss', skill_ids: state.parked.bossSkills, count: b.hp, parent_test_id: state.parked?.testId };
+        const r = await api('/generate-test', body);
+        b.batches++; run.testId = r.test_id; run.items = r.items || []; run.total += run.items.length; run.item = run.items[0] || null; resetInput(run);
+      } catch (e) { state.error = e.message; }
+      state.busy = false; render(); return;
+    }
+    run.item = run.next; run.next = null; resetInput(run); render();
+  }
+  async function bossWin() {
+    const run = state.run, b = run.boss;
+    state.busy = true; render();
+    try {
+      let results = run.pendingDone;
+      if (!results) { const r = await api('/boss/finish', { test_id: run.testId }); results = r.results; }
+      b.points = results?.points || 0;
+      b.phase = 'win'; b.fx = 'dead'; run.feedback = null; run.item = null; run.pendingDone = null;
+      state.toast = `${b.name} defeated!`;
+    } catch (e) { state.error = e.message; }
+    state.busy = false; render();
+  }
+  async function bossResume() {
+    const run = state.run, b = run.boss, parked = state.parked;
+    clearInterval(state.timer);
+    parked.bossLog.push({ kind: b.kind, name: b.name, topic: b.topic, won: b.phase === 'win', points: b.points, skill_id: b.skill_id });
+    state.run = parked; state.parked = null;
+    await loadDash().catch(() => {});
+    if (b.kind === 'big_boss') { parked.bigBossDone = true; parked.done = parked.finalResults; parked.item = null; render(); return; }
+    parked.feedback = null; await nextItem();
+  }
+  async function bossHelper() {
+    const b = state.run?.boss; if (!b) return;
+    b.helperOpen = !b.helperOpen;
+    if (b.helperOpen && b.helper == null) { try { const sid = b.skill_id || state.run.item?.skill_id; const r = await api(`/helper?skill_id=${encodeURIComponent(sid)}`); b.helper = r.text || ''; b.helperName = r.name; } catch { b.helper = ''; } }
+    render();
+  }
+  function mdLite(md) { return esc(md).split('\n').map((l) => l.startsWith('# ') ? '' : l.startsWith('## ') ? `<h4>${l.slice(3)}</h4>` : /^\d+\. /.test(l) || l.startsWith('- ') ? `<li>${l.replace(/^(\d+\. |- )/, '')}</li>` : l.trim() ? `<p>${l}</p>` : '').join(''); }
+  function viewBoss(d, run) {
+    const b = run.boss, it = run.item, fb = run.feedback, big = b.kind === 'big_boss';
+    const hp = `<div class="hp ${big ? 'big' : ''}" role="progressbar" aria-valuenow="${b.hp - b.dmg}" aria-valuemin="0" aria-valuemax="${b.hp}" aria-label="Boss health">${Array.from({ length: b.hp }, (_, i) => `<i class="${i < b.dmg ? 'gone' : ''}"></i>`).join('')}</div><div class="hplbl">${b.hp - b.dmg} / ${b.hp} HP</div>`;
+    const head = `<div class="banner">${big ? '👑 BIG BOSS' : '⚔ BOSS ROUND'}<small>${esc(b.topic).toUpperCase()}</small></div>
+      <div class="stage"><div class="sprite-wrap">${sprite(b.who, b.fx)}<div class="bossname">${esc(b.name)}</div></div><div>${hp}<p class="muted" style="margin:10px 0 0">${big ? `Every boss topic from this quest, mixed. Land ${b.hp} hits to win.` : 'Each correct answer is one hit. Wrong answers do not hurt you — the boss just blocks.'}${b.batches > 1 ? ` <span class="tiny">Round ${b.batches} of 3.</span>` : ''}</p></div></div>`;
+    if (b.phase === 'win') return `<section class="panel arena ${big ? 'big' : ''}">${head}<div class="win"><p class="celebrate" style="display:inline-block"><small>${big ? 'BIG BOSS DEFEATED' : 'BOSS DEFEATED'}</small>${esc(b.name)} is down!</p><div class="pts">+${b.points} POINTS</div><p class="muted">${big ? 'You beat every boss topic in one go. Time to see your quest results.' : `Back to the quest — ${esc(b.topic)} is one to practise with your tutor.`}</p><button class="btn go" data-act="boss-continue">${big ? 'See results' : 'Continue quest'}</button></div></section>`;
+    if (b.phase === 'retreat') return `<section class="panel arena ${big ? 'big' : ''}">${head}<div class="win"><p class="celebrate" style="display:inline-block"><small>THE BOSS ESCAPED</small>${esc(b.name)} slips away…</p><p class="muted">Not this time, and that is fine. ${esc(b.topic)} goes on the list for your tutor. You still keep every point you earned.</p><button class="btn go" data-act="boss-continue">Continue quest</button></div></section>`;
+    if (!it) return `<section class="panel arena ${big ? 'big' : ''}">${head}<p class="muted">Loading…</p></section>`;
+    const elapsed = Math.round((Date.now() - run.startedAt) / 1000);
+    return `<section class="panel arena ${big ? 'big' : ''} ${b.shake ? 'shake' : ''} q">${head}
+      <div class="hudline"><span>HIT ${Math.min(b.dmg + 1, b.hp)} OF ${b.hp}</span><span class="timer" id="timer">${mmss(elapsed)}${it.time_limit_s ? ` · <span id="limit" data-limit="${it.time_limit_s}">${it.time_limit_s}s</span>` : ''}</span></div>
+      ${it.passage ? `<div class="passage">${it.passage_title ? `<b>${esc(it.passage_title)}</b><br>` : ''}${esc(it.passage).replace(/\n/g, '<br>')}</div>` : ''}
+      <p class="stem">${esc(it.stem)}</p>
+      ${fb ? '' : renderInput(it, run)}
+      ${fb ? renderBossFeedback(fb, b) : `<div class="row" style="margin-top:18px"><button class="btn go ${state.busy ? 'busy' : ''}" data-act="check" ${state.busy ? 'disabled' : ''}>Attack!</button><button class="btn" data-act="boss-helper">${b.helperOpen ? 'Hide helper' : '🛡 Helper'}</button></div>`}
+      ${b.helperOpen ? `<div class="helper"><h4>HELPER · ${esc(b.helperName || b.topic)}</h4>${b.helper ? mdLite(b.helper) : '<p>No notes for this topic yet — ask your tutor, or Dad.</p>'}<p class="tiny muted">A real tutor is coming to this button later.</p></div>` : ''}
+      ${fb || d.role !== 'student' ? '' : renderShop(d, run)}
+      <div class="row" style="margin-top:22px"><button class="btn small" data-act="exit-run">Stop for now</button></div></section>`;
+  }
+  function renderBossFeedback(fb, b) {
+    const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer;
+    const won = b.dmg >= b.hp;
+    if (fb.correct) return `<div class="feedback right" role="status"><strong>💥 HIT! ${won ? `${esc(b.name)} goes down!` : `${b.hp - b.dmg} HP left`}</strong>${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">${won ? 'Finish the boss' : 'Next'}</button></div></div>`;
+    return `<div class="feedback again" role="status"><strong>🛡 Blocked!</strong>The answer is <b>${esc(ans)}</b>.${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Try the next one</button></div></div>`;
+  }
+  // points shop: skip a question, buy time, or open a favour (the Treasure chest)
+  function renderShop(d, run) {
+    const p = shopPrices(d), bal = d.points.balance;
+    const noSkip = run.kind === 'diagnostic' ? 'The Big quest is a check — no skips' : bal < p.skip ? `Need ${p.skip} points` : '';
+    const timed = !!run.item?.time_limit_s;
+    return `<div class="shop"><span class="lbl">SHOP · ${bal} PTS</span>
+      <button class="btn shopbtn" data-act="shop-skip" ${noSkip ? `disabled title="${esc(noSkip)}"` : ''}>⏭ Skip · ${p.skip}</button>
+      ${timed ? `<button class="btn shopbtn" data-act="shop-time" ${bal < p.time ? `disabled title="Need ${p.time} points"` : ''}>⏱ +30 s · ${p.time}</button>` : ''}
+      <button class="btn shopbtn" data-act="go-chest">🎁 Favour from Dad</button></div>`;
+  }
+  async function buyShop(item) {
+    const run = state.run, d = state.dash; if (!run || !run.item) return;
+    state.busy = true; state.error = null; render();
+    try {
+      const r = await api('/shop', { item });
+      d.points.balance = r.balance;
+      if (item === 'time') { run.item.time_limit_s = (run.item.time_limit_s || 0) + 30; state.toast = '+30 seconds'; }
+      else {
+        const s = await api('/skip-item', { test_id: run.testId, item_id: run.item.id });
+        run.answered = (run.answered || 0) + 1;
+        if (run.boss) run.boss.attempts++;
+        if (s.item) { run.item = s.item; resetInput(run); }
+        else { const nr = await api('/next-item', { test_id: run.testId }); if (nr.test_complete) { run.pendingDone = nr.results; run.next = null; run.item = null; state.busy = false; await nextItem(); return; } run.item = nr.item; resetInput(run); }
+      }
+    } catch (e) { state.error = e.message; }
+    state.busy = false; render();
   }
 
   // ---------------------------------------------------------------- map (progress as a world)
@@ -564,7 +709,13 @@
         ${FEAT.coach ? `<label class="f"><span>VOICE</span><select name="voice"><option value="true" ${s.voice !== false ? 'selected' : ''}>On</option><option value="false" ${s.voice === false ? 'selected' : ''}>Off</option></select></label>
         <label class="f"><span>RUSSIAN FALLBACK</span><select name="russian_fallback"><option value="true" ${s.russian_fallback !== false ? 'selected' : ''}>On</option><option value="false" ${s.russian_fallback === false ? 'selected' : ''}>Off</option></select></label>
         <label class="f"><span>TIER-3 SLIP → ONE REPLACEMENT ITEM</span><select name="tier3_slip_replacement"><option value="true" ${s.tier3_slip_replacement !== false ? 'selected' : ''}>On</option><option value="false" ${s.tier3_slip_replacement === false ? 'selected' : ''}>Off</option></select></label>` : ''}
+        <label class="f"><span>BOSSES</span><select name="bosses"><option value="true" ${s.bosses !== false ? 'selected' : ''}>On — a wrong answer summons a boss</option><option value="false" ${s.bosses === false ? 'selected' : ''}>Off</option></select></label>
+        <label class="f"><span>POINTS FOR BEATING A BOSS</span><input type="number" name="boss_points_boss" value="${bossPoints(d).boss}" min="0" max="500"></label>
+        <label class="f"><span>POINTS FOR BEATING THE BIG BOSS</span><input type="number" name="boss_points_big" value="${bossPoints(d).big}" min="0" max="1000"></label>
+        <label class="f"><span>SHOP: SKIP A QUESTION COSTS</span><input type="number" name="shop_skip" value="${shopPrices(d).skip}" min="0" max="1000"></label>
+        <label class="f"><span>SHOP: EXTRA 30 SECONDS COSTS</span><input type="number" name="shop_time" value="${shopPrices(d).time}" min="0" max="1000"></label>
         <div><button class="btn small go">Save settings</button></div></form>
+      <p class="muted small">Favours from Dad are the rewards in the Treasure chest (Points & rewards tab). Skips are not allowed inside the Big quest, because it is a check.</p>
       <h3 style="margin-top:20px">Mastery thresholds (read-only)</h3><p class="muted small">Pass rate ${s.pass_rate ?? 0.9} · regression below ${s.regress_rate ?? 0.7} · qualifying test ≥ 3 items · fluency ≤ 3 s per item. These are data, not opinion (docs/02 §3); change them only by a deliberate decision in the schema.</p>
       <p class="muted small">The AI coach and voice are switched off in <code>config.js</code> (FEATURES). A human tutor teaches; the app tests and tracks.</p></section>`;
   }
@@ -597,7 +748,7 @@
       state.error = null;
       if (name === 'logout') { if (PREVIEW) { location.href = location.pathname; return; } await sb.auth.signOut(); state.session = null; state.dash = null; render(); }
       else if (name === 'retry') await refresh();
-      else if (name === 'tour-next') { if (state.tour >= 3) { localStorage.setItem('elchin.tour_done', '1'); state.tour = 0; } else state.tour++; render(); }
+      else if (name === 'tour-next') { if (state.tour >= TOUR.length - 1) { localStorage.setItem('elchin.tour_done', '1'); state.tour = 0; } else state.tour++; render(); }
       else if (name === 'tour-skip') { localStorage.setItem('elchin.tour_done', '1'); state.tour = 0; render(); }
       else if (name === 'coach') await coachStart(ds.skill);
       else if (name === 'coach-resume') await coachStart(state.coachOpen.skill_id, ds.id);
@@ -613,9 +764,15 @@
       else if (name === 'download') { const r = await fetch(CFG.WORKER_URL + ds.path, { headers: { Authorization: `Bearer ${state.session.access_token}` } }); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ds.name; a.click(); }
       else if (name === 'check-skill') { const sk = state.dash.skills.find((s) => s.id === ds.skill); await startRun('diagnostic', ds.subject || sk?.subject || 'Mathematics', [ds.skill]); }
       else if (name === 'check') { if (state.coach) state.coach.stepHint = null; await checkAnswer(); }
+      else if (name === 'boss-start') await startBoss('boss', state.run.feedback.boss);
+      else if (name === 'boss-continue') await bossResume();
+      else if (name === 'boss-helper') await bossHelper();
+      else if (name === 'shop-skip') await buyShop('skip');
+      else if (name === 'shop-time') await buyShop('time');
+      else if (name === 'go-chest') { state.tab = 'home'; render(); }
       else if (name === 'next') await nextItem();
       else if (name === 'review-test') await reviewTest(ds.id);
-      else if (name === 'exit-run') { clearInterval(state.timer); state.run = null; if (state.coach) state.coach.run = null; state.recent = null; await refresh(); }
+      else if (name === 'exit-run') { clearInterval(state.timer); state.run = null; state.parked = null; if (state.coach) state.coach.run = null; state.recent = null; await refresh(); }
       else if (name === 'transcript') { state.transcript = await api(`/coach/session?id=${encodeURIComponent(ds.id)}`); render(); }
       else if (name === 'redeem') { const r = await api('/rewards/redeem', { id: Number(ds.id) }); state.notice = `Chest opened. Balance ${r.balance}.`; await refresh(); }
       else if (name === 'del-reward') { await api('/rewards/delete', { id: Number(ds.id) }); await refresh(); }
@@ -644,13 +801,13 @@
       if (form === 'reward') await api('/rewards', { name: v.name, cost: Number(v.cost) });
       if (form === 'points') await api('/points', { delta: Number(v.delta), reason: v.reason });
       if (form === 'map') await api('/map-results', { term: v.term, subject: v.subject, rit: Number(v.rit), tested_at: v.tested_at || null });
-      if (form === 'settings') await api('/settings', { daily_minutes: Number(v.daily_minutes), ...(FEAT.coach ? { voice: v.voice === 'true', russian_fallback: v.russian_fallback === 'true', tier3_slip_replacement: v.tier3_slip_replacement === 'true' } : {}) });
+      if (form === 'settings') await api('/settings', { daily_minutes: Number(v.daily_minutes), bosses: v.bosses !== 'false', boss_points: { boss: Number(v.boss_points_boss), big: Number(v.boss_points_big) }, shop_prices: { skip: Number(v.shop_skip), time: Number(v.shop_time) }, ...(FEAT.coach ? { voice: v.voice === 'true', russian_fallback: v.russian_fallback === 'true', tier3_slip_replacement: v.tier3_slip_replacement === 'true' } : {}) });
       await refresh();
     } catch (e) { state.error = e.message; render(); }
   }
 
   // ---------------------------------------------------------------- preview mode: fictional data, in-memory only (design review without a login)
-  const PV = { dash: null, tests: [], run: null };
+  const PV = { dash: null, tests: [], runs: {} };
   async function previewApi(path, body) {
     await new Promise((r) => setTimeout(r, 120));
     if (!PV.dash) PV.dash = await previewDash();
@@ -659,15 +816,26 @@
     if (path.startsWith('/tests')) return { tests: PV.tests };
     if (path === '/settings') { Object.assign(d.student.settings, body); return { settings: d.student.settings }; }
     if (path === '/rewards/redeem') { d.points.balance -= d.rewards.find((r) => r.id === body.id)?.cost || 0; return { balance: d.points.balance }; }
+    if (path === '/shop') { const p = { skip: 20, time: 10, ...(d.student.settings.shop_prices || {}) }; const cost = p[body.item] ?? 0; if (d.points.balance < cost) throw new Error(`Not enough points: ${d.points.balance} of ${cost} needed`); d.points.balance -= cost; return { ok: true, balance: d.points.balance }; }
+    if (path.startsWith('/helper')) { const sid = decodeURIComponent(path.split('=')[1] || ''); let text = null; try { const r = await fetch(`data/explanations/${sid}.md`); if (r.ok) text = await r.text(); } catch {} return { skill_id: sid, name: d.skills.find((s) => s.id === sid)?.name || sid, text }; }
     if (path === '/generate-test' || path === '/knowledge-check' || path === '/map-mock') {
-      const items = previewItems(d, body);
-      PV.run = { id: 't' + Date.now(), items, i: 0, correct: 0, kind: body?.mode || (path === '/map-mock' ? 'map_mock' : 'knowledge_check'), subject: body?.subject || 'Mathematics', started: Date.now() };
-      if (body?.mode === 'diagnostic') return { test_id: PV.run.id, item: items[0], progress: { sitting_items: 0, sitting_cap: items.length, skills_done: 0, skills_total: 1 } };
-      return { test_id: PV.run.id, items, ...(body?.mode === 'reading' ? { passage: { title: items[0].passage_title } } : {}) };
+      const mode = body?.mode || (path === '/map-mock' ? 'map_mock' : 'knowledge_check');
+      const items = previewItems(d, body, mode);
+      const run = { id: 't' + Math.random().toString(36).slice(2, 8), items, i: 0, correct: 0, kind: mode, subject: body?.subject || 'Mathematics', started: Date.now(), hp: mode === 'boss' ? 5 : mode === 'big_boss' ? items.length : null };
+      PV.runs[run.id] = run;
+      if (mode === 'diagnostic') return { test_id: run.id, item: items[0], progress: { sitting_items: 0, sitting_cap: items.length, skills_done: 0, skills_total: 1 } };
+      return { test_id: run.id, items, ...(mode === 'reading' ? { passage: { title: items[0].passage_title } } : {}) };
     }
-    if (path === '/next-item') { const r = PV.run, it = r.items[r.i], ok = String(body.last_answer.answer) === String(it.answer); if (ok) r.correct++; r.i++; const done = r.i >= r.items.length; return { last: { correct: ok, answer: it.answer, explanation: it.explanation }, item: done ? null : r.items[r.i], progress: { sitting_items: r.i, sitting_cap: r.items.length }, test_complete: done, results: done ? previewResults(d, r) : null }; }
-    if (path === '/answer-item') { const r = PV.run, it = r.items.find((x) => x.id === body.item_id); if (it && String(body.answer) === String(it.answer)) r.correct++; return {}; }
-    if (path === '/submit-test') return { results: previewResults(d, PV.run) };
+    if (path === '/next-item') {
+      const r = PV.runs[body.test_id]; let last = null;
+      if (body.last_answer) { const it = r.items[r.i], ok = JSON.stringify(body.last_answer.answer) === JSON.stringify(it.answer) || String(body.last_answer.answer) === String(it.answer); if (ok) r.correct++; r.i++; last = { correct: ok, answer: it.answer, explanation: it.explanation }; }
+      const done = r.i >= r.items.length;
+      return { last, item: done ? null : r.items[r.i], progress: r.kind === 'diagnostic' ? { sitting_items: r.i, sitting_cap: r.items.length } : undefined, test_complete: done, results: done ? previewResults(d, r) : null };
+    }
+    if (path === '/skip-item') { const r = PV.runs[body.test_id]; r.i++; const it = r.items[r.i]; return { ok: true, item: it || null, remaining: r.items.length - r.i }; }
+    if (path === '/boss/finish') { const r = PV.runs[body.test_id]; const res = previewResults(d, r); res.points += r.kind === 'boss' ? 25 : 50; d.points.balance += res.points; return { results: res }; }
+    if (path === '/answer-item') { const r = PV.runs[body.test_id], it = r.items.find((x) => x.id === body.item_id); if (it && String(body.answer) === String(it.answer)) r.correct++; return {}; }
+    if (path === '/submit-test') return { results: previewResults(d, PV.runs[body.test_id]) };
     if (path === '/manual-entry/template') return { title: 'Diagnostic 1 (paper)', questions: [{ q: 1, stem: '4,096 + 2,738', answer: '6,834', qsi: 'E01.1', skill_id: 'G4.NBT.4', tier: 2 }, { q: 2, stem: '7 × 86', answer: '602', qsi: 'E01.2', skill_id: 'G4.NBT.5', tier: 2 }] };
     if (path === '/marking-queue') return { queue: [] };
     if (path === '/bank/status') return { min: 10, skills: d.skills.filter((s) => s.subject !== 'Mathematics').slice(0, 6).map((s) => ({ skill_id: s.id, name: s.name, priority: s.priority, stock: [12, 9, 4] })) };
@@ -697,15 +865,16 @@
       rewards: [{ id: 1, name: 'Cinema with Dad', cost: 300 }, { id: 2, name: '30 min extra Minecraft', cost: 120 }], coach_sessions: [], map_results: [], marking_queue_count: role === 'parent' ? 2 : undefined, llm_mode: 'mock', repo_mode: 'preview' };
   }
   function mulberry(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  function previewItems(d, body) {
-    const sid = body?.skill_ids?.[0] || d.skills.find((s) => s.subject === (body?.subject || 'Mathematics'))?.id;
+  function previewItems(d, body, mode) {
+    const sid = body?.skill_id || body?.skill_ids?.[0] || d.skills.find((s) => s.subject === (body?.subject || 'Mathematics'))?.id;
+    if (mode === 'boss' || mode === 'big_boss') { const n = mode === 'boss' ? 5 : Math.max(5, Math.min(10, (body?.skill_ids?.length || 1) * 2 + 3)); const qs = [['numeric', 'What is 6 × 7?', '42'], ['numeric', 'What is 1,000 − 250?', '750'], ['mc4', 'Which is a multiple of 9?', 'C', ['22', '35', '45', '52']], ['numeric', 'Round 3,678 to the nearest hundred.', '3700'], ['numeric', 'What is 48 ÷ 6?', '8'], ['mc4', 'Which number is the smallest?', 'B', ['0.5', '0.05', '0.55', '0.505']], ['numeric', 'What is 125 + 375?', '500'], ['numeric', 'What is 9 × 8?', '72'], ['numeric', 'What is 2,000 ÷ 4?', '500'], ['numeric', 'What is 15 × 4?', '60']]; return qs.slice(0, n).map((q, i) => ({ id: `${mode}${i}`, skill_id: (body?.skill_ids || [sid])[i % (body?.skill_ids?.length || 1)], format: q[0], stem: q[1], answer: q[2], options: q[3], explanation: 'Check it with the inverse operation.' })); }
     if (body?.mode === 'reading') return [{ id: 'r1', skill_id: 'RD.RL.1', format: 'mc4', passage_title: 'The Fox and the Grapes', passage: 'A hungry fox saw a bunch of ripe grapes hanging from a vine high above him. He jumped and jumped, but could not reach them. At last he walked away, saying, "They were probably sour anyway."', stem: 'Why does the fox say the grapes were sour?', options: ['He tasted them', 'He could not reach them and wanted to feel better', 'A crow told him', 'They were green'], answer: 'B', explanation: 'He never tasted them; he made an excuse.' }, { id: 'r2', skill_id: 'RD.RL.2', format: 'short_text', passage_title: 'The Fox and the Grapes', passage: 'A hungry fox saw a bunch of ripe grapes hanging from a vine high above him. He jumped and jumped, but could not reach them. At last he walked away, saying, "They were probably sour anyway."', stem: 'What is the lesson of this fable? Answer in one sentence.', answer: 'It is easy to dislike what you cannot have.' }];
     return [{ id: 'q1', skill_id: sid, format: 'numeric', stem: 'What is 4,096 + 2,738?', answer: '6834', explanation: 'Add the ones, tens, hundreds and thousands, carrying when a column passes 9.' }, { id: 'q2', skill_id: sid, format: 'mc4', stem: 'Which number is the largest?', options: ['4,096', '4,960', '4,609', '4,690'], answer: 'B', explanation: 'Compare the hundreds digit first: 9 is the biggest.' }, { id: 'q3', skill_id: sid, format: 'ordering', stem: 'Put these in order from smallest to largest.', options: ['0.5', '0.05', '0.55', '0.505'], answer: ['0.05', '0.5', '0.505', '0.55'], explanation: 'Line up the decimal points and compare digit by digit.' }];
   }
   function previewResults(d, r) {
     const sk = d.skills.find((s) => s.id === r.items[0].skill_id) || d.skills[0];
     const rate = r.items.length ? r.correct / r.items.length : 0, after = rate >= 0.9 ? 'secure' : rate >= 0.5 ? 'emerging' : 'not_yet';
-    return { kind: r.kind, correct: r.correct, total: r.items.length, points: r.correct * 2, duration_s: Math.round((Date.now() - r.started) / 1000), per_skill: [{ skill_id: sk.id, name: sk.name, items: r.items.length, correct: r.correct, rate, status_before: sk.status, status_after: after }], items: r.items.map((i) => ({ stem: i.stem, answer: i.answer, answer_given: '—', correct: true })), next_steps: after === 'secure' ? [] : [{ skill_id: sk.id, name: sk.name, subject: sk.subject }], secured: after === 'secure' ? [sk.name] : [] };
+    return { kind: r.kind, correct: r.correct, total: Math.max(r.correct, Math.min(r.i, r.items.length)), points: r.correct * 2, duration_s: Math.round((Date.now() - r.started) / 1000), per_skill: [{ skill_id: sk.id, name: sk.name, items: r.items.length, correct: r.correct, rate, status_before: sk.status, status_after: after }], items: r.items.map((i) => ({ stem: i.stem, answer: i.answer, answer_given: '—', correct: true })), next_steps: after === 'secure' ? [] : [{ skill_id: sk.id, name: sk.name, subject: sk.subject }], secured: after === 'secure' ? [sk.name] : [] };
   }
 
   init();

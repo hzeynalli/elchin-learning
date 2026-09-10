@@ -17,6 +17,18 @@ export const rewardsRoutes = {
     await repo.updateReward(r.id, { redeemed_at: now.toISOString() });
     return { ok: true, balance: balance - r.cost };
   },
+  /** Points shop (10 Sep): skip a question or buy extra time. Prices live in settings.shop_prices (parent-editable). */
+  'POST /shop': async ({ repo, studentId, profile, body }) => {
+    const student = profile.role === 'student' ? profile : await repo.getProfile(studentId);
+    const prices = { skip: 20, time: 10, ...(student?.settings?.shop_prices || {}) };
+    const item = String(body?.item || '');
+    if (!(item in prices)) throw Object.assign(new Error('unknown shop item'), { status: 400 });
+    const cost = Math.max(0, Math.round(Number(prices[item]) || 0));
+    const balance = (await repo.getPoints(studentId)).reduce((a, p) => a + p.delta, 0);
+    if (balance < cost) throw Object.assign(new Error(`Not enough points: ${balance} of ${cost} needed`), { status: 400 });
+    if (cost > 0) await repo.addPoints({ student_id: studentId, delta: -cost, reason: item === 'skip' ? 'shop: skip a question' : 'shop: extra time' });
+    return { ok: true, item, cost, balance: balance - cost };
+  },
   'POST /points': async ({ repo, studentId, body }) => {              // parent manual adjustment
     const delta = Math.round(Number(body?.delta)), reason = String(body?.reason || 'parent adjustment').slice(0, 120);
     if (!delta) throw Object.assign(new Error('delta required'), { status: 400 });

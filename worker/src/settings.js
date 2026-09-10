@@ -1,6 +1,6 @@
 // Parent settings (BRIEF §7 screen 5) and MAP RIT entry (docs/01). Mastery thresholds are read-only in the UI
 // (CLAUDE.md #5): changing pass_rate / regress_rate needs a deliberate decision, so this endpoint refuses them.
-const EDITABLE = new Set(['daily_minutes', 'voice', 'russian_fallback', 'tier3_slip_replacement', 'coach_block_minutes', 'daily_cap_minutes', 'auto_read', 'unlocked_skills']);
+const EDITABLE = new Set(['daily_minutes', 'voice', 'russian_fallback', 'tier3_slip_replacement', 'coach_block_minutes', 'daily_cap_minutes', 'auto_read', 'unlocked_skills', 'shop_prices', 'boss_points', 'bosses']);
 
 export const settingsRoutes = {
   'POST /settings': async ({ repo, studentId, body }) => {

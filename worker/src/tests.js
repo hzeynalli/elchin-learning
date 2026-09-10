@@ -11,6 +11,7 @@ import { shuffle, rngFor } from './rng.js';
 import { planDailyReview } from './scheduler.js';
 import { applyReviewOutcomes, areaSummary, CONFUSABLE_PAIRS } from './year.js';
 import markPrompt from '../prompts/mark_prompt.md';
+import explanations from './explanations.json' with { type: 'json' };
 
 const ADAPTIVE = new Set(['diagnostic']);
 const isSecure = (s) => s === 'secure' || s === 'mastered';
@@ -36,8 +37,21 @@ export async function markAnswer(env, repo, row, given, { time_s = null, retry =
   return { ...base, correct, partial: j.partial != null ? Number(j.partial) : correct ? 1 : 0, confidence, feedback: j.feedback || null, marked_by: 'llm' };
 }
 
-function specsForMode({ mode, skills, stateBy, subject, skillId, rng }) {
+function specsForMode({ mode, skills, stateBy, subject, skillId, skillIds, count, rng }) {
   const inSubject = skills.filter((s) => s.subject === subject);
+  // Boss round (design of 10 Sep): a wrong answer in a quest summons a boss on that skill — 5 mixed-tier questions, each
+  // correct one deals 1/5 damage. Big boss: 5–10 questions across every skill whose boss appeared during the quest.
+  if (mode === 'boss') {
+    const tiers = shuffle(rng, [1, 2, 2, 3, 3]);
+    return tiers.map((tier, i) => ({ skill_id: skillId, tier, position: i + 1 }));
+  }
+  if (mode === 'big_boss') {
+    const ids = [...new Set((skillIds || []).filter((id) => skills.some((s) => s.id === id)))];
+    if (!ids.length) throw bad('skill_ids required for the big boss');
+    const n = Math.max(5, Math.min(10, Number(count) || ids.length * 2 + 3));
+    const specs = []; for (let i = 0; i < n; i++) specs.push({ skill_id: ids[i % ids.length], tier: i % 3 === 2 ? 3 : 2 });
+    return shuffle(rng, specs).map((sp, i) => ({ ...sp, position: i + 1 }));
+  }
   if (mode === 'targeted') {
     const notSecure = new Set(inSubject.filter((s) => !isSecure(stateBy[s.id]?.status)).map((s) => s.id));
     const dependents = {}; for (const s of inSubject) if (notSecure.has(s.id)) for (const p of s.prerequisites) dependents[p] = (dependents[p] || 0) + 1;
@@ -110,10 +124,12 @@ export const testsRoutes = {
       return { test_id: test.id, mode, subject: 'Reading', passage: { id: p.id, title: p.title, text: p.text, genre: p.genre }, items: inserted.map(publicItem), expected_s: inserted.map((r) => expectedSeconds({ format: r.format, tier: r.tier })) };
     }
     const rng = rngFor(studentId, mode, nowIso);
-    const specs = specsForMode({ mode, skills, stateBy, subject, skillId: body?.skill_id, rng });
-    if ((mode === 'practice10' || mode === 'confirm5') && !byId[body?.skill_id]) throw bad('skill_id required');
+    if ((mode === 'practice10' || mode === 'confirm5' || mode === 'boss') && !byId[body?.skill_id]) throw bad('skill_id required');
+    const specs = specsForMode({ mode, skills, stateBy, subject, skillId: body?.skill_id, skillIds: body?.skill_ids, count: body?.count, rng });
     const kind = mode;
-    const test = await repo.insertTest({ student_id: studentId, subject: byId[body?.skill_id]?.subject || subject, kind, skill_id: body?.skill_id || null, loop_id: body?.loop_id || null, status: 'open', started_at: nowIso, plan: { specs: specs.length, mode } });
+    const bossSubject = mode === 'big_boss' ? byId[specs[0].skill_id]?.subject : null;
+    const hp = mode === 'boss' ? 5 : mode === 'big_boss' ? specs.length : undefined;
+    const test = await repo.insertTest({ student_id: studentId, subject: byId[body?.skill_id]?.subject || bossSubject || subject, kind, skill_id: body?.skill_id || null, loop_id: body?.loop_id || null, status: 'open', started_at: nowIso, plan: { specs: specs.length, mode, ...(hp ? { hp, boss_of: body?.parent_test_id || null } : {}) } });
     const rows = await makeItems(repo, { studentId, testId: test.id, subject, specs, skillsById: byId, env });
     const inserted = await repo.insertTestItems(rows);
     return { test_id: test.id, mode, subject, items: inserted.map(publicItem), expected_s: inserted.map((r) => expectedSeconds({ format: r.format, tier: r.tier, time_limit_s: r.item.time_limit_s })) };
@@ -180,6 +196,38 @@ export const testsRoutes = {
     return { test_id: test.id, results };
   },
 
+  /** Points shop "skip": the item is voided (never served again, never marked). Not for adaptive diagnostics. */
+  'POST /skip-item': async ({ repo, studentId, body }) => {
+    const test = await repo.getTest(body?.test_id);
+    if (!test || test.student_id !== studentId) throw bad('test not found', 404);
+    if (test.kind === 'diagnostic') throw bad('The Big quest cannot be skipped');
+    const row = await repo.getTestItem(body?.item_id);
+    if (!row || row.test_id !== test.id) throw bad('item not found', 404);
+    if (row.correct != null) throw bad('item already marked');
+    await repo.updateTestItem(row.id, { item: { ...row.item, voided: true, skipped: true }, answer_given: '(skipped)' });
+    const items = await repo.getTestItems(test.id);
+    const next = items.find((i) => i.correct == null && !i.item?.voided && i.id !== row.id);
+    return { ok: true, item: next ? publicItem(next) : null, remaining: next ? items.filter((i) => i.correct == null && !i.item?.voided).length : 0 };
+  },
+  /** Boss defeated before every question was used: finalise now (unanswered items are ignored) and award the bonus. */
+  'POST /boss/finish': async ({ env, repo, studentId, profile, body, now }) => {
+    const test = await repo.getTest(body?.test_id);
+    if (!test || test.student_id !== studentId) throw bad('test not found', 404);
+    if (!['boss', 'big_boss'].includes(test.kind)) throw bad('not a boss round');
+    if (test.status === 'complete') { const items = await repo.getTestItems(test.id); return { results: { kind: test.kind, correct: items.filter((i) => i.correct).length, total: items.filter((i) => i.correct != null).length, points: 0, per_skill: [], items: [] }, already: true }; }
+    const results = await finalizeTest(env, repo, { test, studentId, profile, now: now.toISOString() });
+    return { results };
+  },
+  /** Helper panel in a boss round: the canonical explanation for the skill (owner-editable copy in the DB wins). */
+  'GET /helper': async ({ repo, url }) => {
+    const id = url.searchParams.get('skill_id');
+    const skills = await repo.getSkills();
+    const skill = skills.find((s) => s.id === id);
+    if (!skill) throw bad('skill not found', 404);
+    const db = repo.getExplanation ? await repo.getExplanation(id).catch(() => null) : null;
+    const text = db?.body || explanations[id] || null;
+    return { skill_id: id, name: skill.name, subject: skill.subject, text };
+  },
   'GET /tests': async ({ repo, studentId, url }) => {
     const tests = await repo.getTests(studentId, { limit: Number(url.searchParams.get('limit') || 30) });
     return { tests: tests.map((t) => ({ id: t.id, subject: t.subject, kind: t.kind, status: t.status, score: t.score, per_skill: t.per_skill, started_at: t.started_at, submitted_at: t.submitted_at, duration_s: t.duration_s, progress: t.kind === 'diagnostic' ? progressOf(t.plan) : null })) };
@@ -233,6 +281,10 @@ export async function finalizeTest(env, repo, { test, studentId, profile, now })
     const today = String(now).slice(0, 10);
     const already = (await repo.getPoints(studentId)).some((p) => p.reason === 'review day' && String(p.at).slice(0, 10) === today);
     if (!already) { bonus = 5; await repo.addPoints({ student_id: studentId, delta: 5, reason: 'review day' }); }
+  }
+  if (test.kind === 'boss' || test.kind === 'big_boss') {                 // boss defeated when the required hits landed
+    const hp = test.plan?.hp || 5;
+    if (right >= hp) { const bp = settings.boss_points || {}; const b = Math.round(Number(test.kind === 'boss' ? bp.boss ?? 25 : bp.big ?? 50)); if (b > 0) { bonus += b; await repo.addPoints({ student_id: studentId, delta: b, reason: test.kind === 'boss' ? 'boss defeated' : 'big boss defeated' }); } }
   }
   const pts = answerPts + bonus;
   await repo.insertEvent({ student_id: studentId, kind: 'test_complete', payload: { test_id: test.id, kind: test.kind, score, items: answered.length } });

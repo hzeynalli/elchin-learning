@@ -44,6 +44,21 @@ What changed in the code:
   `npx wrangler secret put NAME` (they then survive deploys); `keep_vars = true` is now in wrangler.toml as a second guard.
   `SUPABASE_SERVICE_KEY` was re-set from `.env`; **`ANTHROPIC_API_KEY` must be re-set** (`/health` shows `llm: mock` until then).
 
+### 10 Sep — BOSS rounds, big boss, points shop (Elchin's idea)
+- A wrong answer in a Big/Practice/Story quest or a Daily review summons a **boss** on that skill (one per skill per quest):
+  5 questions, each correct answer = 1 hit, wrong answers only "block"; up to 3 batches of 5, then the boss "escapes"
+  (no penalty; the topic is listed for the tutor). Beating it = `boss_points.boss` (default 25). At the end of a quest with
+  bosses, the **BIG BOSS** (Dragon King) mixes every boss skill: 5–10 questions, `boss_points.big` (default 50).
+- Worker: `generate-test` modes `boss` (skill_id) and `big_boss` (skill_ids, count); `POST /boss/finish`; bonus in
+  `finalizeTest`; `POST /shop` (skip 20 / extra time 10 pts, `settings.shop_prices`); `POST /skip-item` (voids the item,
+  refused in the Big quest); `GET /helper?skill_id` (canonical explanation for the Helper button — a human/AI tutor later).
+- Front-end: the quest is parked (`state.parked`) and a boss run takes `state.run`, so the question screen, timer and
+  marking are reused unchanged; pixel-art bosses drawn with box-shadow (`BOSSES`, `BIG_BOSS` in app.js); all quests except
+  Memory game and Arena now go through `/next-item` so every answer is marked immediately. Parent → Settings: bosses on/off,
+  bonus points, shop prices. Preview: `?preview=1&start=targeted&boss=1` or `&boss=big`.
+- **Migration required**: `schema/migrations/0003_boss_kinds.sql` adds `boss` / `big_boss` to the `test_kind_t` enum.
+  Until it is applied in the Supabase SQL editor, starting a boss returns "invalid input value for enum test_kind_t".
+
 ## ▶ START HERE (office, 9 Sep): connect the two API keys
 
 The app is already live at **https://hzeynalli.github.io/elchin-learning/** (Worker deployed, Pages on). Only two
