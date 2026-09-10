@@ -20,7 +20,7 @@
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   const isSec = (s) => s.status === 'secure' || s.status === 'mastered';
 
-  const state = { session: null, dash: null, tab: PARAMS.get('tab') || localStorage.getItem('elchin.tab') || 'home', ptab: PARAMS.get('ptab') || 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, parked: null, recent: null, queue: null, bank: null, coach: null, tour: 0, unlockDraft: null, toast: null, buddy: { open: false, session_id: null, messages: [], input: '', busy: false, voice: localStorage.getItem('elchin.nala_voice') !== '0', listening: false, unread: false } };
+  const state = { session: null, dash: null, tab: PARAMS.get('tab') || localStorage.getItem('elchin.tab') || 'home', ptab: PARAMS.get('ptab') || 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, parked: null, recent: null, queue: null, bank: null, coach: null, tour: 0, unlockDraft: null, toast: null, buddy: { open: false, session_id: null, messages: [], input: '', busy: false, voice: FEAT.voice && localStorage.getItem('elchin.nala_voice') === '1', listening: false, unread: false } };
   // Boss rounds (10 Sep): a wrong answer in one of these quest kinds summons a boss on that skill; one boss per skill per quest.
   const BOSS_KINDS = ['diagnostic', 'targeted', 'reading', 'review', 'daily_review'];
   const shopPrices = (d) => ({ skip: 20, time: 10, ...(d?.student?.settings?.shop_prices || {}) });
@@ -32,7 +32,7 @@
     ['Bosses', 'Get a question wrong and a BOSS appears. Answer 5 questions right to beat it, one hit each. At the end of a quest the BIG BOSS returns with every boss topic mixed together.'],
     ['Map', 'The Map shows every topic as a block. Stone = not yet, copper = getting there, grass = secure, diamond = mastered. Dark blocks are locked until Dad opens them.'],
     ['Points', 'Every correct answer and every beaten boss earns points. Spend them to skip a question, buy extra time, or open a favour from Dad in the Treasure chest.'],
-    ['Nala', 'Nala the lioness lives in the corner. Ask her where anything is, how to beat a boss, or to explain a question you got wrong. Tell her if something is broken and she writes it down for Dad. Press the speaker to hear her talk.'],
+    ['Nala', 'Nala the lioness lives in the corner. Ask her where anything is, how to beat a boss, or to explain a question you got wrong. Tell her if something is broken and she writes it down for Dad.'],
   ];
   if (!['home', 'quests', 'map', 'coach', 'parent'].includes(state.tab)) state.tab = 'home';
 
@@ -370,11 +370,11 @@
     if (!b.open) return `<button class="nala-btn" data-act="nala-toggle" aria-label="Talk to Nala">${sprite(NALA, '')}<span class="tag">NALA</span>${b.unread ? '<span class="dot"></span>' : ''}</button>`;
     const chips = state.run?.feedback && !state.run.feedback.correct ? [['Explain this one', 'Can you explain this question to me? I got it wrong.'], ['Give me a hint', 'Give me a hint for the next one, not the answer.']] : state.run?.item ? [['Give me a hint', 'Give me a hint for this question, not the answer.'], ['How do bosses work?', 'How do I beat a boss?']] : [['What do I do now?', 'What should I do now?'], ['How do bosses work?', 'How do I beat a boss?'], ['Where are my points?', 'Where do I see my points and what can I buy?']];
     chips.push(['Something is broken', 'Something is not working in the app.']);
-    return `<section class="nala" role="dialog" aria-label="Nala the buddy"><div class="nhead">${sprite(NALA, '')}<span class="name">NALA · YOUR BUDDY</span><button class="mini ${b.voice ? 'on' : ''}" data-act="nala-voice" aria-pressed="${b.voice}" title="Read aloud">${b.voice ? '🔊' : '🔇'}</button><button class="mini" data-act="nala-toggle" aria-label="Close">✕</button></div>
+    return `<section class="nala" role="dialog" aria-label="Nala the buddy"><div class="nhead">${sprite(NALA, '')}<span class="name">NALA · YOUR BUDDY</span>${FEAT.voice ? `<button class="mini ${b.voice ? 'on' : ''}" data-act="nala-voice" aria-pressed="${b.voice}" title="Read aloud">${b.voice ? '🔊' : '🔇'}</button>` : ''}<button class="mini" data-act="nala-toggle" aria-label="Close">✕</button></div>
       <div class="nlog" id="nala-log" aria-live="polite">${b.messages.map((m) => `<div class="msg ${m.role === 'nala' ? 'nala-m' : 'me'} ${m.bug ? 'bug' : ''}"><span class="who">${m.role === 'nala' ? 'NALA' : 'YOU'}${m.bug ? ' · WRITTEN DOWN FOR DAD' : ''}</span>${esc(m.content).replace(/\n/g, '<br>')}</div>`).join('')}</div>
       ${b.busy ? '<div class="thinking">NALA IS THINKING</div>' : ''}
       <div class="chips">${chips.map(([l, m]) => `<button class="btn" data-act="nala-chip" data-msg="${esc(m)}">${esc(l)}</button>`).join('')}</div>
-      <div class="nin"><input id="nala-in" type="text" placeholder="${b.listening ? 'Listening…' : 'Ask Nala…'}" value="${esc(b.input)}" ${b.busy ? 'disabled' : ''} aria-label="Message to Nala"><button class="btn mic ${b.listening ? 'on' : ''}" data-act="nala-mic" aria-label="Talk" ${b.busy ? 'disabled' : ''}>🎙</button><button class="btn go" data-act="nala-send" ${b.busy ? 'disabled' : ''}>Send</button></div></section>`;
+      <div class="nin"><input id="nala-in" type="text" placeholder="${b.listening ? 'Listening…' : 'Ask Nala…'}" value="${esc(b.input)}" ${b.busy ? 'disabled' : ''} aria-label="Message to Nala">${FEAT.voice ? `<button class="btn mic ${b.listening ? 'on' : ''}" data-act="nala-mic" aria-label="Talk" ${b.busy ? 'disabled' : ''}>🎙</button>` : ''}<button class="btn go" data-act="nala-send" ${b.busy ? 'disabled' : ''}>Send</button></div></section>`;
   }
 
   // ---------------------------------------------------------------- BOSS rounds (10 Sep): the quest is parked, a boss run takes its place

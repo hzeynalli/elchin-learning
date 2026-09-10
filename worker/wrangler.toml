@@ -15,6 +15,7 @@ MODEL_COACH = "claude-fable-5-1"
 MODEL_GEN   = "claude-sonnet-5"        # item generation + cold-solve verification (bulk; every item is double-checked)
 MODEL_MARK  = "claude-fable-5-1"       # marking of open answers and writing (judgment; low volume). Set to claude-sonnet-5 to save cost.
 MODEL_GUARD = "claude-haiku-4-5-20251001"
+MODEL_BUDDY = "claude-sonnet-5"        # Nala the buddy (10 Sep: moved off Fable for cost — ~5× cheaper per reply)
 DAILY_BUDGET_USD = "3"
 TIMEZONE = "Asia/Baku"
 # Secrets (never here): ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY, ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID

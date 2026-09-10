@@ -10,7 +10,7 @@ window.ELCHIN_CONFIG = {
   WORKER_URL: (typeof localStorage !== 'undefined' && localStorage.getItem('elchin.worker_url')) || 'https://elchin-learning.hzeynalli.workers.dev',
   DUE_DATE: '2026-10-01',
   TIMEZONE: 'Asia/Baku',
-  FEATURES: { coach: false, voice: true, buddy: true },   // buddy = Nala; voice = Nala reads aloud (ElevenLabs via the Worker, browser voice until the key is set)
+  FEATURES: { coach: false, voice: false, buddy: true },  // buddy = Nala (text). voice: off since 10 Sep (cost) — flip to true to bring back the speaker/mic; ElevenLabs secrets stay set
   // Terms shown on the Map and in the parent's Unlock panel. Grade-4 skills are "Last year"; Grade-5 skills split by planned month.
   TERMS: [
     { id: 'past', label: 'Last year', hint: 'Grade 4 — make sure nothing was forgotten', match: (s) => Number(s.grade) < 5 },

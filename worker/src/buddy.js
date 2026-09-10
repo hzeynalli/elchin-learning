@@ -1,5 +1,5 @@
 // Nala — Elchin's buddy (10 Sep). A Minecraft-style lioness who guides him around the app, coaches him on a question he
-// got wrong, and takes bug reports for his dad. One Claude call per turn (MODEL_COACH), JSON reply, every message stored in
+// got wrong, and takes bug reports for his dad. One Claude call per turn (MODEL_BUDDY, Sonnet 5), JSON reply, every message stored in
 // coach_sessions (representation 'nala', outcome 'buddy') so the parent can read it (CLAUDE.md #4). Bugs → events 'bug_report'.
 import { llm } from './anthropic.js';
 import explanations from './explanations.json' with { type: 'json' };
@@ -46,7 +46,7 @@ export async function buddyTurn(env, repo, { studentId, profile, sessionId, mess
   const history = (session.messages || []).slice(-MAX_HISTORY).map((m) => ({ role: m.role, content: m.content }));
   const ctx = contextBlock({ ...context, skill_name: context?.skill_name || skill?.name });
   const messages = [...history, { role: 'user', content: `${ctx ? `[CONTEXT]\n${ctx}\n[/CONTEXT]\n` : ''}${text}` }];
-  const res = await llm(env, repo, { purpose: 'buddy', model: env.MODEL_COACH || env.MODEL_GEN, system, messages, max_tokens: 700, json: true, effort: 'low' });
+  const res = await llm(env, repo, { purpose: 'buddy', model: env.MODEL_BUDDY || env.MODEL_COACH || env.MODEL_GEN, system, messages, max_tokens: 700, json: true, effort: 'low' });
   const j = res.json && typeof res.json === 'object' ? res.json : null;
   let reply = String(j?.reply || res.text || '').trim();
   if (res.refusal || !reply) reply = "Roar… I lost my words for a second. Ask me again, or press Next and we carry on!";
