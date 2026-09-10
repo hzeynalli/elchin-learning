@@ -53,8 +53,10 @@ What changed in the code:
   reports (events kind `bug_report`, filed when Nala flags one or on keyword match) and lets you read every chat.
 - "Ask Nala" buttons: on every wrong-answer panel, in the "a BOSS appears" panel, and in boss rounds (replaced the Helper).
 - Bosses redrawn cubic/Minecraft-style (16×16 maps in app.js). Tour has a Nala step. `FEATURES.buddy` / `FEATURES.voice` on.
-- **To give Nala a real voice**: add `ELEVENLABS_API_KEY=` to `.env`, then Claude lists voices, picks a warm female voice,
-  sets both secrets with `wrangler secret put`. Verify model ids (`eleven_v3`, `scribe_v1`) against ElevenLabs docs.
+- **Voice live 10 Sep 14:00**: ElevenLabs free tier (10,000 chars/month — roughly 30 Nala replies; when it runs out `/tts`
+  returns 502 and the browser voice takes over automatically). Secrets set with wrangler: `ELEVENLABS_API_KEY`,
+  `ELEVENLABS_VOICE_ID` = `cgSgspJ2msm6clMCkdW9` (Jessica — young, playful, warm), `ELEVENLABS_TTS_MODEL` = `eleven_v3`
+  (en + ru confirmed via /v1/models). Copies in the office `.env`. Upgrade to Starter (~USD 5/month, 30k chars) if he uses her a lot.
 
 ### 10 Sep — BOSS rounds, big boss, points shop (Elchin's idea)
 - A wrong answer in a Big/Practice/Story quest or a Daily review summons a **boss** on that skill (one per skill per quest):
