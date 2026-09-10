@@ -20,7 +20,7 @@
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
   const isSec = (s) => s.status === 'secure' || s.status === 'mastered';
 
-  const state = { session: null, dash: null, tab: PARAMS.get('tab') || localStorage.getItem('elchin.tab') || 'home', ptab: PARAMS.get('ptab') || 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, parked: null, recent: null, queue: null, bank: null, coach: null, tour: 0, unlockDraft: null, toast: null };
+  const state = { session: null, dash: null, tab: PARAMS.get('tab') || localStorage.getItem('elchin.tab') || 'home', ptab: PARAMS.get('ptab') || 'overview', error: null, busy: false, template: null, manual: { marks: {}, minutes: '', q4: '', date: '' }, notice: null, run: null, parked: null, recent: null, queue: null, bank: null, coach: null, tour: 0, unlockDraft: null, toast: null, buddy: { open: false, session_id: null, messages: [], input: '', busy: false, voice: localStorage.getItem('elchin.nala_voice') !== '0', listening: false, unread: false } };
   // Boss rounds (10 Sep): a wrong answer in one of these quest kinds summons a boss on that skill; one boss per skill per quest.
   const BOSS_KINDS = ['diagnostic', 'targeted', 'reading', 'review', 'daily_review'];
   const shopPrices = (d) => ({ skip: 20, time: 10, ...(d?.student?.settings?.shop_prices || {}) });
@@ -32,6 +32,7 @@
     ['Bosses', 'Get a question wrong and a BOSS appears. Answer 5 questions right to beat it, one hit each. At the end of a quest the BIG BOSS returns with every boss topic mixed together.'],
     ['Map', 'The Map shows every topic as a block. Stone = not yet, copper = getting there, grass = secure, diamond = mastered. Dark blocks are locked until Dad opens them.'],
     ['Points', 'Every correct answer and every beaten boss earns points. Spend them to skip a question, buy extra time, or open a favour from Dad in the Treasure chest.'],
+    ['Nala', 'Nala the lioness lives in the corner. Ask her where anything is, how to beat a boss, or to explain a question you got wrong. Tell her if something is broken and she writes it down for Dad. Press the speaker to hear her talk.'],
   ];
   if (!['home', 'quests', 'map', 'coach', 'parent'].includes(state.tab)) state.tab = 'home';
 
@@ -65,7 +66,7 @@
 
   // ---------------------------------------------------------------- auth
   async function init() {
-    if (PREVIEW) { state.session = { access_token: 'preview' }; await refresh(); if (PARAMS.get('start')) await startRun(PARAMS.get('start'), PARAMS.get('subject') || 'Mathematics'); if (PARAMS.get('boss') && state.run) { state.run.bossSkills.push(state.run.item.skill_id); await startBoss(PARAMS.get('boss') === 'big' ? 'big_boss' : 'boss', state.run.item.skill_id); } return; }
+    if (PREVIEW) { state.session = { access_token: 'preview' }; await refresh(); if (PARAMS.get('start')) await startRun(PARAMS.get('start'), PARAMS.get('subject') || 'Mathematics'); if (PARAMS.get('boss') && state.run) { state.run.bossSkills.push(state.run.item.skill_id); await startBoss(PARAMS.get('boss') === 'big' ? 'big_boss' : 'boss', state.run.item.skill_id); } if (PARAMS.get('nala')) { state.buddy.open = true; state.buddy.messages.push({ role: 'nala', content: `Hi ${state.dash.student.name}! I'm Nala. Ask me where anything is, how to beat a boss, or to explain a question. If something looks broken, tell me and I'll write it down for Dad.` }, { role: 'me', content: 'How do I beat a boss?' }, { role: 'nala', content: 'A boss shows up when you get a question wrong. Land 5 hits — one per correct answer — and it falls over! Wrong answers only make it block. Beat it for 25 points. Roar!' }); render(); } return; }
     const { data } = await sb.auth.getSession();
     state.session = data.session;
     sb.auth.onAuthStateChange((_e, s) => { state.session = s; if (!s) { state.dash = null; render(); } });
@@ -107,6 +108,7 @@
       <main id="main">${({ home: viewHome, quests: viewQuests, coach: viewCoach, map: viewMap, parent: viewParent })[state.tab]?.(d) || ''}</main>
       <footer class="muted small" style="margin:30px 0 10px;color:#fff;text-shadow:1px 1px 0 #000">${PREVIEW ? 'Preview with fictional data — nothing is saved. ' : ''}${d.llm_mode === 'mock' ? 'AI questions are in preview mode (no API key yet). ' : ''}${d.repo_mode === 'user-rls' ? 'Read-only until the service key is set. ' : ''}</footer>
       ${state.toast ? `<div class="toast" role="status"><small>ACHIEVEMENT GET!</small>${esc(state.toast)}</div>` : ''}
+      ${FEAT.buddy && !isParent ? viewBuddy(d) : ''}
       ${tour}`;
     bind(app);
     afterRender();
@@ -295,11 +297,11 @@
     return `<input type="text" class="answer" id="answer" autocomplete="off" inputmode="${it.format === 'numeric' ? 'decimal' : 'text'}" placeholder="Your answer" value="${esc(run.input ?? '')}" aria-label="Your answer">`;
   }
   function renderFeedback(fb, it) {
-    if (fb.boss) { const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer; return `<div class="feedback again" role="status"><strong>Not this time — a BOSS appears!</strong>The answer was <b>${esc(ans)}</b>.${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<p style="margin:10px 0 0">Beat the boss on this topic to carry on: 5 hits, one per correct answer.</p><div class="row" style="margin-top:12px"><button class="btn gold" data-act="boss-start">⚔ Fight the boss!</button></div></div>`; }
+    if (fb.boss) { const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer; return `<div class="feedback again" role="status"><strong>Not this time — a BOSS appears!</strong>The answer was <b>${esc(ans)}</b>.${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<p style="margin:10px 0 0">Beat the boss on this topic to carry on: 5 hits, one per correct answer.</p><div class="row" style="margin-top:12px"><button class="btn gold" data-act="boss-start">⚔ Fight the boss!</button>${FEAT.buddy ? '<button class="btn nala-ask" data-act="nala-explain">🦁 Ask Nala first</button>' : ''}</div></div>`; }
     if (fb.retry) return `<div class="feedback again" role="status"><strong>Look again</strong> ${esc(fb.hint)}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Try again</button></div></div>`;
     const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer;
     const given = Array.isArray(fb.given) ? fb.given.join(', ') : fb.given;
-    return `<div class="feedback ${fb.correct ? 'right' : 'again'}" role="status"><strong>${fb.correct ? '✓ Correct!' : 'Not this time'}</strong>${fb.correct ? '' : `The answer is <b>${esc(ans)}</b>.`}${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}${fb.correct ? '' : `<div class="muted small" style="margin-top:4px">You wrote: ${esc(given)}</div>`}${fb.coach ? `<div class="bubble assistant" style="margin-top:10px">${esc(fb.coach)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Next</button></div></div>`;
+    return `<div class="feedback ${fb.correct ? 'right' : 'again'}" role="status"><strong>${fb.correct ? '✓ Correct!' : 'Not this time'}</strong>${fb.correct ? '' : `The answer is <b>${esc(ans)}</b>.`}${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}${fb.correct ? '' : `<div class="muted small" style="margin-top:4px">You wrote: ${esc(given)}</div>`}${fb.coach ? `<div class="bubble assistant" style="margin-top:10px">${esc(fb.coach)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Next</button>${!fb.correct && FEAT.buddy ? '<button class="btn nala-ask" data-act="nala-explain">🦁 Ask Nala</button>' : ''}</div></div>`;
   }
   function viewResults(r) {
     const secured = r.secured?.length ? `<p class="celebrate" style="margin-top:16px"><small>ACHIEVEMENT GET!</small>Secure ✓ ${r.secured.map(esc).join(', ')}</p>` : '';
@@ -328,17 +330,61 @@
     const ci = $('#coach-input'); if (ci) { ci.addEventListener('input', () => { state.coach.input = ci.value; }); ci.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendCoach(); } }); if (!state.coach.busy) ci.focus(); }
     const chat = $('#chat'); if (chat) chat.scrollTop = chat.scrollHeight;
     const rd = document.querySelector('[data-toggle-read]'); if (rd) rd.addEventListener('change', () => { state.coach.autoRead = rd.checked; localStorage.setItem('elchin.autoread', rd.checked ? '1' : '0'); });
+    const ni = $('#nala-in'); if (ni) { ni.addEventListener('input', () => { state.buddy.input = ni.value; }); ni.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); buddySend(); } }); if (state.buddy.open && !state.buddy.busy && !state.run?.item) ni.focus(); }
+    const nl = $('#nala-log'); if (nl) nl.scrollTop = nl.scrollHeight;
     if (state.toast) { clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => { state.toast = null; const el = $('.toast'); if (el) el.remove(); }, 4000); }
+  }
+
+  // ---------------------------------------------------------------- Nala the buddy (10 Sep): guide, coach on wrong answers, voice, bug notebook
+  const NALA = { name: 'Nala', px: 5, pal: { a: '#C8963E', b: '#8A5A22', c: '#F4E2B8', d: '#2B1B0B', e: '#E8B86A', f: '#FFFFFF' }, map: ['....bb....bb....', '...baab..baab...', '...baaaaaaaab...', '..baaaaaaaaaab..', '..baaaaaaaaaab..', '..baaffaaaffab..', '..baaddaaaddab..', '..baaaaaaaaaab..', '...baacccaaab...', '...baccdccab....', '....bccccca.....', '.....bcccab.....', '....baaaaaab....', '...baaaaaaaab...', '...bbb....bbb...', '................'] };
+  function buddyContext() {
+    const d = state.dash, run = state.run, it = run?.item, fb = run?.feedback;
+    const skillId = it?.skill_id || run?.boss?.skill_id || null;
+    return { screen: run ? (run.boss ? 'boss round' : 'quest') : state.tab, kind: run ? kindLabel(run.kind) : null, skill_id: skillId, skill_name: skillId ? skillName(d, skillId) : null,
+      stem: it?.stem || null, options: it?.options || null, answered: !!fb && !fb.retry, correct: fb ? !!fb.correct : null, given: fb ? (Array.isArray(fb.given) ? fb.given.join(', ') : fb.given) : null, answer: fb ? fb.answer : null, explanation: fb?.explanation || null,
+      boss: run?.boss ? { name: run.boss.name, hp: run.boss.hp, dmg: run.boss.dmg } : null, points: d?.points?.balance };
+  }
+  async function buddySend() {
+    const b = state.buddy; const msg = (b.input || '').trim(); if (!msg || b.busy) return;
+    b.messages.push({ role: 'me', content: msg }); b.input = ''; b.busy = true; b.open = true; render();
+    try {
+      const r = await api('/buddy', { session_id: b.session_id, message: msg, context: buddyContext() });
+      b.session_id = r.session_id; b.messages.push({ role: 'nala', content: r.reply, bug: r.bug });
+      if (b.voice) speak(r.reply);
+    } catch (e) { b.messages.push({ role: 'nala', content: `Roar… something went wrong: ${e.message}` }); }
+    b.busy = false; render();
+  }
+  function buddyListen() {
+    const b = state.buddy;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { b.messages.push({ role: 'nala', content: 'Talking to me needs Chrome on a laptop or Android. You can type instead!' }); render(); return; }
+    if (b.rec) { b.rec.stop(); return; }
+    const rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false;
+    rec.onresult = (e) => { b.input = Array.from(e.results).map((r) => r[0].transcript).join(' '); const el = $('#nala-in'); if (el) el.value = b.input; if (e.results[e.results.length - 1].isFinal) { b.listening = false; b.rec = null; buddySend(); } };
+    rec.onend = () => { b.listening = false; b.rec = null; render(); };
+    rec.onerror = () => { b.listening = false; b.rec = null; render(); };
+    b.rec = rec; b.listening = true; rec.start(); render();
+  }
+  function viewBuddy(d) {
+    const b = state.buddy;
+    if (!b.open) return `<button class="nala-btn" data-act="nala-toggle" aria-label="Talk to Nala">${sprite(NALA, '')}<span class="tag">NALA</span>${b.unread ? '<span class="dot"></span>' : ''}</button>`;
+    const chips = state.run?.feedback && !state.run.feedback.correct ? [['Explain this one', 'Can you explain this question to me? I got it wrong.'], ['Give me a hint', 'Give me a hint for the next one, not the answer.']] : state.run?.item ? [['Give me a hint', 'Give me a hint for this question, not the answer.'], ['How do bosses work?', 'How do I beat a boss?']] : [['What do I do now?', 'What should I do now?'], ['How do bosses work?', 'How do I beat a boss?'], ['Where are my points?', 'Where do I see my points and what can I buy?']];
+    chips.push(['Something is broken', 'Something is not working in the app.']);
+    return `<section class="nala" role="dialog" aria-label="Nala the buddy"><div class="nhead">${sprite(NALA, '')}<span class="name">NALA · YOUR BUDDY</span><button class="mini ${b.voice ? 'on' : ''}" data-act="nala-voice" aria-pressed="${b.voice}" title="Read aloud">${b.voice ? '🔊' : '🔇'}</button><button class="mini" data-act="nala-toggle" aria-label="Close">✕</button></div>
+      <div class="nlog" id="nala-log" aria-live="polite">${b.messages.map((m) => `<div class="msg ${m.role === 'nala' ? 'nala-m' : 'me'} ${m.bug ? 'bug' : ''}"><span class="who">${m.role === 'nala' ? 'NALA' : 'YOU'}${m.bug ? ' · WRITTEN DOWN FOR DAD' : ''}</span>${esc(m.content).replace(/\n/g, '<br>')}</div>`).join('')}</div>
+      ${b.busy ? '<div class="thinking">NALA IS THINKING</div>' : ''}
+      <div class="chips">${chips.map(([l, m]) => `<button class="btn" data-act="nala-chip" data-msg="${esc(m)}">${esc(l)}</button>`).join('')}</div>
+      <div class="nin"><input id="nala-in" type="text" placeholder="${b.listening ? 'Listening…' : 'Ask Nala…'}" value="${esc(b.input)}" ${b.busy ? 'disabled' : ''} aria-label="Message to Nala"><button class="btn mic ${b.listening ? 'on' : ''}" data-act="nala-mic" aria-label="Talk" ${b.busy ? 'disabled' : ''}>🎙</button><button class="btn go" data-act="nala-send" ${b.busy ? 'disabled' : ''}>Send</button></div></section>`;
   }
 
   // ---------------------------------------------------------------- BOSS rounds (10 Sep): the quest is parked, a boss run takes its place
   const BOSSES = [
-    { name: 'Grumble the Golem', px: 13, pal: { a: '#8C8C8C', b: '#5E5E5E', c: '#C46A3A', d: '#2B2B2B' }, map: ['....aaaa....', '...aaaaaa...', '..aabaabaa..', '..aacaacaa..', '..aaaaaaaa..', '...aaddaa...', 'aaaaaaaaaaaa', 'aabaaaaaabaa', 'aabaaaaaabaa', '...aaaaaa...', '...aa..aa...', '..bbb..bbb..'] },
-    { name: 'Slurp the Slime', px: 13, pal: { a: '#3BD05A', b: '#1E8F38', c: '#FFFFFF', d: '#0B3B14' }, map: ['............', '....aaaa....', '..aaaaaaaa..', '.aaacaaacaa.', '.aaadaaadaa.', 'aaaaaaaaaaaa', 'aaaaaaaaaaaa', 'aaaaddddaaaa', 'aaaaaaaaaaaa', '.aaaaaaaaaa.', '..bbbbbbbb..', '............'] },
-    { name: 'Bones the Skeleton', px: 13, pal: { a: '#E8E8E8', b: '#9A9A9A', c: '#1B1230', d: '#7A6A9A' }, map: ['....aaaa....', '...aaaaaa...', '...acaaca...', '...aaaaaa...', '....abba....', '..aaaaaaaa..', '.a.aabbaa.a.', '.a.aaaaaa.a.', '.a.abaaba.a.', '...aaaaaa...', '...aa..aa...', '...bb..bb...'] },
-    { name: 'Wisp the Ghost', px: 13, pal: { a: '#B49CFF', b: '#7A5CE0', c: '#FFFFFF', d: '#2A1B45' }, map: ['....aaaa....', '..aaaaaaaa..', '.aaaaaaaaaa.', '.aacaaaacaa.', '.aadaaaadaa.', 'aaaaaaaaaaaa', 'aaaaadaaaaaa', 'aaaaaaaaaaaa', 'aaaaaaaaaaaa', 'aa.aaaaaa.aa', 'a..aa..aa..a', '...a....a...'] },
+    { name: 'Grumble the Golem', px: 10, pal: { a: '#8C8C8C', b: '#5E5E5E', c: '#C46A3A', d: '#2B2B2B', e: '#A8A8A8' }, map: ['....aaaaaaaa....', '....aeeeeeea....', '....accaacca....', '....aeeaaeea....', '....aaadddaa....', '....aaaaaaaa....', 'aaaaaaaaaaaaaaaa', 'abbbaaeeeeaabbba', 'abbbaaeeeeaabbba', 'abbbaaaaaaaabbba', 'abbbaabbbbaabbba', '....aaaaaaaa....', '....aaa..aaa....', '....aaa..aaa....', '....bbb..bbb....', '................'] },
+    { name: 'Slurp the Slime', px: 10, pal: { a: '#3BD05A', b: '#1E8F38', c: '#FFFFFF', d: '#0B3B14', e: '#7AE88C' }, map: ['................', '................', '....bbbbbbbb....', '...baaaaaaaab...', '..baaeaaaaeaab..', '..baaccaaccaab..', '..baaddaaddaab..', '..baaaaaaaaaab..', '..baaaaaaaaaab..', '..baaddddddaab..', '..baaaaaaaaaab..', '..baaaaeeaaaab..', '...baaaaaaaab...', '....bbbbbbbb....', '................', '................'] },
+    { name: 'Bones the Skeleton', px: 10, pal: { a: '#E8E8E8', b: '#9A9A9A', c: '#1B1230', d: '#7A6A9A', e: '#C4C4C4' }, map: ['.....aaaaaa.....', '.....aeeeea.....', '.....accacca....', '.....aeeeeea....', '.....aabbbaa....', '......aaaa......', '...aaaaaaaaaa...', '..aa.aebbeba.aa.', '..aa.aeeeeea.aa.', '..aa.aebbeba.aa.', '..aa.aeeeeea.aa.', '..bb.aaaaaaa.bb.', '.....aa..aa.....', '.....aa..aa.....', '.....bb..bb.....', '................'] },
+    { name: 'Wisp the Ghost', px: 10, pal: { a: '#B49CFF', b: '#7A5CE0', c: '#FFFFFF', d: '#2A1B45', e: '#D4C4FF' }, map: ['.....bbbbbb.....', '....baaaaaab....', '...baaeaaaeab...', '...baaccacca....', '...baaddaddab...', '..baaaaaaaaaab..', '..baaaaddaaaab..', '..baaaaaaaaaab..', '..baaaaaaaaaab..', '..baaeaaaaeaab..', '..baaaaaaaaaab..', '..bab.baab.bab..', '..b...b..b...b..', '................', '................', '................'] },
   ];
-  const BIG_BOSS = { name: 'The Dragon King', px: 10, pal: { a: '#3A1B45', b: '#B02A2A', c: '#FCEE4B', d: '#1B0A14', e: '#FF7A1A' }, map: ['......aaaa......', '.....aaaaaa.....', '....aacaacaa....', '....aaaaaaaa....', 'b....aaddaa....b', 'bb...aaaaaa...bb', 'bbb.aaaaaaaa.bbb', 'bbbbaaaaaaaabbbb', '.bbbaaaaaaaabbb.', '..bbaaaaaaaabb..', '...aaaaaaaaaa...', '....aaaaaaaa....', '....aa.aa.aa....', '...aaa.aa.aaa...', '...eee....eee...', '................'] };
+  const BIG_BOSS = { name: 'The Dragon King', px: 10, pal: { a: '#3A1B45', b: '#B02A2A', c: '#FCEE4B', d: '#1B0A14', e: '#FF7A1A', f: '#6A3A8A' }, map: ['.....aaaaaa.....', '....aaffffaa....', '....accaacca....', '....aaffffaa....', 'b...aaaddaaa...b', 'bb..aaaaaaaa..bb', 'bbb.aaffffaa.bbb', 'bbbbaafaafaabbbb', '.bbbaaffffaabbb.', '..bbaaaaaaaabb..', '...aaffffffaa...', '....aaaaaaaa....', '....aaa..aaa....', '...aaaa..aaaa...', '...eee....eee...', '................'] };
   function bossFor(kind, skillId) { if (kind === 'big_boss') return BIG_BOSS; let h = 0; for (const ch of skillId) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return BOSSES[h % BOSSES.length]; }
   function sprite(b, fx) {
     const sh = []; b.map.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') sh.push(`${x * b.px}px ${y * b.px}px 0 ${b.pal[ch] || '#000'}`); }));
@@ -419,7 +465,7 @@
       ${it.passage ? `<div class="passage">${it.passage_title ? `<b>${esc(it.passage_title)}</b><br>` : ''}${esc(it.passage).replace(/\n/g, '<br>')}</div>` : ''}
       <p class="stem">${esc(it.stem)}</p>
       ${fb ? '' : renderInput(it, run)}
-      ${fb ? renderBossFeedback(fb, b) : `<div class="row" style="margin-top:18px"><button class="btn go ${state.busy ? 'busy' : ''}" data-act="check" ${state.busy ? 'disabled' : ''}>Attack!</button><button class="btn" data-act="boss-helper">${b.helperOpen ? 'Hide helper' : '🛡 Helper'}</button></div>`}
+      ${fb ? renderBossFeedback(fb, b) : `<div class="row" style="margin-top:18px"><button class="btn go ${state.busy ? 'busy' : ''}" data-act="check" ${state.busy ? 'disabled' : ''}>Attack!</button>${FEAT.buddy ? '<button class="btn nala-ask" data-act="nala-explain">🦁 Ask Nala</button>' : `<button class="btn" data-act="boss-helper">${b.helperOpen ? 'Hide helper' : '🛡 Helper'}</button>`}</div>`}
       ${b.helperOpen ? `<div class="helper"><h4>HELPER · ${esc(b.helperName || b.topic)}</h4>${b.helper ? mdLite(b.helper) : '<p>No notes for this topic yet — ask your tutor, or Dad.</p>'}<p class="tiny muted">A real tutor is coming to this button later.</p></div>` : ''}
       ${fb || d.role !== 'student' ? '' : renderShop(d, run)}
       <div class="row" style="margin-top:22px"><button class="btn small" data-act="exit-run">Stop for now</button></div></section>`;
@@ -428,7 +474,7 @@
     const ans = Array.isArray(fb.answer) ? fb.answer.join(' → ') : fb.answer;
     const won = b.dmg >= b.hp;
     if (fb.correct) return `<div class="feedback right" role="status"><strong>💥 HIT! ${won ? `${esc(b.name)} goes down!` : `${b.hp - b.dmg} HP left`}</strong>${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">${won ? 'Finish the boss' : 'Next'}</button></div></div>`;
-    return `<div class="feedback again" role="status"><strong>🛡 Blocked!</strong>The answer is <b>${esc(ans)}</b>.${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Try the next one</button></div></div>`;
+    return `<div class="feedback again" role="status"><strong>🛡 Blocked!</strong>The answer is <b>${esc(ans)}</b>.${fb.explanation ? `<div class="small" style="margin-top:6px">${esc(fb.explanation)}</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn go" data-act="next">Try the next one</button>${FEAT.buddy ? '<button class="btn nala-ask" data-act="nala-explain">🦁 Ask Nala</button>' : ''}</div></div>`;
   }
   // points shop: skip a question, buy time, or open a favour (the Treasure chest)
   function renderShop(d, run) {
@@ -605,8 +651,8 @@
 
   // ---------------------------------------------------------------- parent
   function viewParent(d) {
-    const tabs = [['overview', 'Overview'], ['unlock', 'Unlock topics'], ['manual', 'Paper diagnostic'], ['queue', `Marking queue${d.marking_queue_count ? ` (${d.marking_queue_count})` : ''}`], ...(FEAT.coach ? [['transcripts', 'Coach transcripts']] : []), ['rewards', 'Points & rewards'], ['map', 'MAP scores'], ['settings', 'Settings'], ['exports', 'Exports & admin']];
-    const body = { overview: pOverview, unlock: pUnlock, manual: pManual, queue: pQueue, transcripts: pTranscripts, rewards: pRewards, map: pMap, settings: pSettings, exports: pExports }[state.ptab]?.(d) || '';
+    const tabs = [['overview', 'Overview'], ['unlock', 'Unlock topics'], ...(FEAT.buddy ? [['nala', "Nala's notebook"]] : []), ['manual', 'Paper diagnostic'], ['queue', `Marking queue${d.marking_queue_count ? ` (${d.marking_queue_count})` : ''}`], ...(FEAT.coach ? [['transcripts', 'Coach transcripts']] : []), ['rewards', 'Points & rewards'], ['map', 'MAP scores'], ['settings', 'Settings'], ['exports', 'Exports & admin']];
+    const body = { overview: pOverview, unlock: pUnlock, nala: pNala, manual: pManual, queue: pQueue, transcripts: pTranscripts, rewards: pRewards, map: pMap, settings: pSettings, exports: pExports }[state.ptab]?.(d) || '';
     return `<div class="subtabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab ${state.ptab === k ? 'active' : ''}" role="tab" aria-selected="${state.ptab === k}" data-ptab="${k}">${l}</button>`).join('')}</div>${body}`;
   }
   function pOverview(d) {
@@ -650,6 +696,15 @@
         <span class="row">${CFG.TERMS.map((t) => `<button class="btn small" data-act="unlock-term" data-term="${t.id}" data-on="1">Open ${esc(t.label)}</button>`).join('')}<button class="btn small" data-act="unlock-term" data-term="*" data-on="0">Lock everything</button></span></div>
       <div class="row" style="margin-bottom:14px"><button class="btn go" data-act="unlock-save" ${state.busy ? 'disabled' : ''}>Save</button><button class="btn" data-act="unlock-reset">Discard changes</button><span class="muted small">${dr.set.size} of ${d.skills.length} topics open in this draft</span></div>
       ${CFG.TERMS.map((t) => SUBJECT_ORDER.map((sub) => group(sub, t)).join('')).join('')}</section>`;
+  }
+  function pNala(d) {
+    if (!state.notes) { api('/buddy/notes').then((r) => { state.notes = r.notes; render(); }).catch((e) => { state.notes = []; state.error = e.message; render(); }); return '<section class="panel"><h2>Nala\'s notebook</h2><p class="muted">Loading…</p></section>'; }
+    const chats = d.coach_sessions.filter((s) => s.outcome === 'buddy');
+    return `<section class="panel"><h2>Bug reports and problems Elchin told Nala</h2>
+      ${state.notes.length ? `<div style="overflow-x:auto"><table><tr><th>When</th><th>Where</th><th>Summary</th><th>What he said</th></tr>${state.notes.map((n) => `<tr><td>${fmtDate(n.at)}</td><td class="small">${esc(n.screen || '')}${n.stem ? `<br><span class="muted">${esc(String(n.stem).slice(0, 60))}</span>` : ''}</td><td>${esc(n.summary)}${n.detail ? `<div class="muted small">${esc(n.detail)}</div>` : ''}</td><td class="small">${esc(n.message || '')}</td></tr>`).join('')}</table></div>` : '<p class="muted">Nothing reported yet. When Elchin tells Nala something is broken or confusing, it appears here.</p>'}</section>
+      <section class="panel"><h2>Nala chats <span class="muted tiny">${chats.length} recent</span></h2>
+      ${chats.length ? `<div style="overflow-x:auto"><table><tr><th>Date</th><th>Topic</th><th class="num">Turns</th><th></th></tr>${chats.map((s) => `<tr><td>${fmtDate(s.started_at)}</td><td>${s.skill_id ? esc(skillName(d, s.skill_id)) : '<span class="muted">general</span>'}</td><td class="num">${s.turns}</td><td><button class="btn small" data-act="transcript" data-id="${s.id}">Read</button></td></tr>`).join('')}</table></div>` : '<p class="muted">No chats yet.</p>'}
+      ${state.transcript ? `<h3 style="margin-top:16px">${state.transcript.skill_id ? esc(skillName(d, state.transcript.skill_id)) : 'General'} · ${fmtDate(state.transcript.started_at)}</h3><div class="chat" style="max-height:60vh">${(state.transcript.messages || []).map((m) => `<div class="bubble ${m.role}"><span class="muted small">${m.role === 'user' ? 'Elchin' : 'Nala'}${m.bug ? ' · filed a bug' : ''}${m.ctx ? ` · ${esc(m.ctx)}` : ''}</span><br>${esc(m.content).replace(/\n/g, '<br>')}</div>`).join('')}</div>` : ''}</section>`;
   }
   function pManual(d) {
     const t = state.template;
@@ -770,10 +825,17 @@
       else if (name === 'shop-skip') await buyShop('skip');
       else if (name === 'shop-time') await buyShop('time');
       else if (name === 'go-chest') { state.tab = 'home'; render(); }
+      else if (name === 'nala-toggle') { state.buddy.open = !state.buddy.open; state.buddy.unread = false; if (state.buddy.open && !state.buddy.messages.length) state.buddy.messages.push({ role: 'nala', content: `Hi ${state.dash.student.name}! I'm Nala. Ask me where anything is, how to beat a boss, or to explain a question. If something looks broken, tell me and I'll write it down for Dad.` }); render(); }
+      else if (name === 'nala-send') await buddySend();
+      else if (name === 'nala-chip') { state.buddy.input = ds.msg; await buddySend(); }
+      else if (name === 'nala-explain') { state.buddy.open = true; state.buddy.input = state.run?.feedback ? 'Can you explain this question to me? I got it wrong.' : 'Can you help me with this question? Give me a hint.'; await buddySend(); }
+      else if (name === 'nala-mic') buddyListen();
+      else if (name === 'nala-voice') { state.buddy.voice = !state.buddy.voice; localStorage.setItem('elchin.nala_voice', state.buddy.voice ? '1' : '0'); if (!state.buddy.voice && 'speechSynthesis' in window) speechSynthesis.cancel(); render(); }
       else if (name === 'next') await nextItem();
       else if (name === 'review-test') await reviewTest(ds.id);
       else if (name === 'exit-run') { clearInterval(state.timer); state.run = null; state.parked = null; if (state.coach) state.coach.run = null; state.recent = null; await refresh(); }
       else if (name === 'transcript') { state.transcript = await api(`/coach/session?id=${encodeURIComponent(ds.id)}`); render(); }
+      else if (name === 'nala-notes-refresh') { state.notes = null; render(); }
       else if (name === 'redeem') { const r = await api('/rewards/redeem', { id: Number(ds.id) }); state.notice = `Chest opened. Balance ${r.balance}.`; await refresh(); }
       else if (name === 'del-reward') { await api('/rewards/delete', { id: Number(ds.id) }); await refresh(); }
       else if (name === 'pmark') { const fb = document.querySelector(`[data-fb="${ds.id}"]`)?.value || ''; await api('/parent-mark', { item_id: ds.id, correct: ds.correct === '1', feedback: fb || undefined }); state.queue = null; await refresh(); }
@@ -816,6 +878,9 @@
     if (path.startsWith('/tests')) return { tests: PV.tests };
     if (path === '/settings') { Object.assign(d.student.settings, body); return { settings: d.student.settings }; }
     if (path === '/rewards/redeem') { d.points.balance -= d.rewards.find((r) => r.id === body.id)?.cost || 0; return { balance: d.points.balance }; }
+    if (path === '/buddy') { const ctx = body.context || {}; const m = body.message.toLowerCase(); const bug = /broken|not working|bug/.test(m); const reply = bug ? "Thanks for telling me! I wrote it down for Dad: '" + body.message + "'. Can you tell me what you pressed just before it happened?" : /boss/.test(m) ? 'A boss shows up when you get a question wrong. Land 5 hits — one per correct answer — and it falls over! Wrong answers only make it block. Beat it for 25 points.' : ctx.stem && ctx.answered === false ? "Here's a hint, not the answer: look at the biggest place value first, then work right. You've got this!" : ctx.stem ? `Let's look at "${ctx.stem}". Step one: read what it asks for. Step two: try the smallest chunk first. Want me to do the first step with you?` : 'Right now, go to Home and press Start on the first quest. Points show at the top; the Treasure chest is on Home. Roar!'; return { session_id: 'pv-nala', reply, bug }; }
+    if (path === '/buddy/notes') return { notes: [{ id: 1, at: '2026-09-10T07:10:00Z', screen: 'boss round', stem: 'Work out 63 ÷ 7.', summary: 'Timer kept running after Check', detail: 'He pressed Check, the answer showed, the timer did not stop.', message: 'the timer is broken it keeps going after check' }] };
+    if (path.startsWith('/coach/session')) return { id: 'pv', skill_id: '5.NBT.5', started_at: '2026-09-10T07:00:00Z', messages: [{ role: 'user', content: 'How do I beat a boss?', ctx: 'home' }, { role: 'assistant', content: 'Land 5 hits — one per correct answer. Wrong answers only make the boss block. Let\'s go!' }] };
     if (path === '/shop') { const p = { skip: 20, time: 10, ...(d.student.settings.shop_prices || {}) }; const cost = p[body.item] ?? 0; if (d.points.balance < cost) throw new Error(`Not enough points: ${d.points.balance} of ${cost} needed`); d.points.balance -= cost; return { ok: true, balance: d.points.balance }; }
     if (path.startsWith('/helper')) { const sid = decodeURIComponent(path.split('=')[1] || ''); let text = null; try { const r = await fetch(`data/explanations/${sid}.md`); if (r.ok) text = await r.text(); } catch {} return { skill_id: sid, name: d.skills.find((s) => s.id === sid)?.name || sid, text }; }
     if (path === '/generate-test' || path === '/knowledge-check' || path === '/map-mock') {
@@ -862,7 +927,7 @@
       skills: rows, urgency, qsi_units: [{ id: 'E01', course: 'Math', unit: 'E01 Whole numbers', skills: 8, secure: 5, pct: 63 }, { id: 'E02', course: 'Math', unit: 'E02 Multiplication & division', skills: 6, secure: 2, pct: 33 }, { id: 'R01', course: 'Reading', unit: 'E01 Literature', skills: 6, secure: 3, pct: 50 }],
       today: { urgent: urgency.slice(0, 3), review_due: rows.filter((r) => r.status === 'secure').slice(0, 4).map((r) => r.id), learn_ahead: [] },
       points: { balance: 235, ledger: [{ at: '2026-09-08T15:00:00Z', reason: 'Practice quest 8/10', delta: 14 }, { at: '2026-09-07T15:00:00Z', reason: 'Story quest 6/6', delta: 12 }] },
-      rewards: [{ id: 1, name: 'Cinema with Dad', cost: 300 }, { id: 2, name: '30 min extra Minecraft', cost: 120 }], coach_sessions: [], map_results: [], marking_queue_count: role === 'parent' ? 2 : undefined, llm_mode: 'mock', repo_mode: 'preview' };
+      rewards: [{ id: 1, name: 'Cinema with Dad', cost: 300 }, { id: 2, name: '30 min extra Minecraft', cost: 120 }], coach_sessions: [{ id: 'pv', skill_id: '5.NBT.5', started_at: '2026-09-10T07:00:00Z', outcome: 'buddy', turns: 2 }], map_results: [], marking_queue_count: role === 'parent' ? 2 : undefined, llm_mode: 'mock', repo_mode: 'preview' };
   }
   function mulberry(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function previewItems(d, body, mode) {

@@ -12,6 +12,7 @@ import { coachRoutes } from './coach.js';
 import { voiceRoutes } from './voice.js';
 import { exportRoutes } from './export.js';
 import { yearRoutes } from './year.js';
+import { buddyRoutes } from './buddy.js';
 import { BudgetExceeded } from './anthropic.js';
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
@@ -38,8 +39,9 @@ const routes = {
   ...voiceRoutes,
   ...exportRoutes,
   ...yearRoutes,
+  ...buddyRoutes,
 };
-const PARENT_ONLY = new Set(['POST /manual-entry', 'POST /rewards', 'POST /rewards/delete', 'POST /points', 'POST /settings', 'POST /map-results', 'POST /parent-mark', 'GET /marking-queue', 'GET /export/csv', 'GET /export/weekly.pdf', 'GET /usage', 'POST /admin/refill-bank', 'GET /bank/status', 'POST /admin/seed']);
+const PARENT_ONLY = new Set(['POST /manual-entry', 'POST /rewards', 'POST /rewards/delete', 'POST /points', 'POST /settings', 'POST /map-results', 'POST /parent-mark', 'GET /marking-queue', 'GET /export/csv', 'GET /export/weekly.pdf', 'GET /usage', 'POST /admin/refill-bank', 'GET /bank/status', 'POST /admin/seed', 'GET /buddy/notes']);
 const PUBLIC = new Set(['GET /health']);
 
 // later phases register here (tests, coach, telemetry, bank, exports) — see registerRoutes()

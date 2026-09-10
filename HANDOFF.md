@@ -44,6 +44,18 @@ What changed in the code:
   `npx wrangler secret put NAME` (they then survive deploys); `keep_vars = true` is now in wrangler.toml as a second guard.
   `SUPABASE_SERVICE_KEY` was re-set from `.env`; **`ANTHROPIC_API_KEY` must be re-set** (`/health` shows `llm: mock` until then).
 
+### 10 Sep — Nala the buddy (voice, coaching, bug notebook)
+- **Nala** (lioness, Lion King) is the in-app NPC: button bottom-right on every student screen, chat panel with quick chips,
+  mic (browser Web Speech) and a speaker toggle (`/tts` → ElevenLabs when `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`
+  are set, browser voice until then). `worker/src/buddy.js`: `POST /buddy` (one Fable call per turn, JSON reply, persona +
+  APP_MANUAL + the topic's canonical notes; hints only while a question is unanswered) and `GET /buddy/notes` (parent).
+  Every turn is stored in `coach_sessions` (representation `nala`, outcome `buddy`) → Parent → **Nala's notebook** shows bug
+  reports (events kind `bug_report`, filed when Nala flags one or on keyword match) and lets you read every chat.
+- "Ask Nala" buttons: on every wrong-answer panel, in the "a BOSS appears" panel, and in boss rounds (replaced the Helper).
+- Bosses redrawn cubic/Minecraft-style (16×16 maps in app.js). Tour has a Nala step. `FEATURES.buddy` / `FEATURES.voice` on.
+- **To give Nala a real voice**: add `ELEVENLABS_API_KEY=` to `.env`, then Claude lists voices, picks a warm female voice,
+  sets both secrets with `wrangler secret put`. Verify model ids (`eleven_v3`, `scribe_v1`) against ElevenLabs docs.
+
 ### 10 Sep — BOSS rounds, big boss, points shop (Elchin's idea)
 - A wrong answer in a Big/Practice/Story quest or a Daily review summons a **boss** on that skill (one per skill per quest):
   5 questions, each correct answer = 1 hit, wrong answers only "block"; up to 3 batches of 5, then the boss "escapes"
