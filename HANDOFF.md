@@ -56,8 +56,8 @@ What changed in the code:
   marking are reused unchanged; pixel-art bosses drawn with box-shadow (`BOSSES`, `BIG_BOSS` in app.js); all quests except
   Memory game and Arena now go through `/next-item` so every answer is marked immediately. Parent → Settings: bosses on/off,
   bonus points, shop prices. Preview: `?preview=1&start=targeted&boss=1` or `&boss=big`.
-- **Migration required**: `schema/migrations/0003_boss_kinds.sql` adds `boss` / `big_boss` to the `test_kind_t` enum.
-  Until it is applied in the Supabase SQL editor, starting a boss returns "invalid input value for enum test_kind_t".
+- Migration `schema/migrations/0003_boss_kinds.sql` (`boss` / `big_boss` in `test_kind_t`) — **applied 10 Sep 13:25** by Huseyn in the
+  SQL editor; live boss + big boss verified with Elchin's account, test rows deleted afterwards. `src/__tests__/boss.test.js` covers it.
 
 ## ▶ START HERE (office, 9 Sep): connect the two API keys
 
